@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Typix 笔记
+Name[en]=Typix Notes
+Comment=键盘优先的离线笔记
+Exec=/usr/bin/typix-notes
+Icon=typix-notes
+Terminal=false
+Categories=Utility;
+StartupNotify=true
+X-TypixDeck-App-ID=net.typixnode.notes

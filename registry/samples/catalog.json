@@ -1,0 +1,124 @@
+{
+  "schemaVersion": 1,
+  "channel": "stable",
+  "revision": "20260911T120000Z",
+  "generatedAt": "2026-09-11T12:00:00Z",
+  "expiresAt": "2026-09-18T12:00:00Z",
+  "defaultLocale": "zh-CN",
+  "applications": [
+    {
+      "id": "net.typixnode.notes",
+      "package": "typixdeck-app-notes",
+      "currentVersion": "0.8.0-1",
+      "type": "application",
+      "categories": ["utility"],
+      "name": {"zh-CN": "Typix 笔记", "en": "Typix Notes"},
+      "summary": {"zh-CN": "键盘优先的离线笔记", "en": "Keyboard-first offline notes"},
+      "description": {
+        "zh-CN": "轻量 GTK3 笔记应用，针对 800×600 小屏和键盘输入优化。",
+        "en": "A lightweight GTK3 notes app tuned for the 800x600 display and keyboard input."
+      },
+      "developer": {"name": "TypixNode"},
+      "license": "MIT",
+      "icon": "https://registry.example.invalid/typixdeck/v1/stable/icons/net.typixnode.notes.png",
+      "versions": [
+        {
+          "version": "0.8.0-1",
+          "releasedAt": "2026-09-10T08:00:00Z",
+          "channel": "stable",
+          "status": "stable",
+          "compatibility": {
+            "arch": ["arm64"],
+            "os": ["raspios-trixie"],
+            "cores": ["cm0", "cm4", "cm5"],
+            "minMemoryMB": 256,
+            "minFreeDiskMB": 128,
+            "display": ["wayland", "x11"],
+            "requiredFeatures": ["keyboard"]
+          },
+          "artifact": {
+            "arch": "arm64",
+            "filename": "typixdeck-app-notes_0.8.0-1_arm64.deb",
+            "url": "https://registry.example.invalid/typixdeck/v1/stable/pool/typixdeck-app-notes_0.8.0-1_arm64.deb",
+            "sizeBytes": 524288,
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "installedSizeBytes": 2097152,
+            "depends": ["python3", "python3-gi", "gir1.2-gtk-3.0"],
+            "recommends": [],
+            "conflicts": [],
+            "provides": []
+          },
+          "desktopIds": ["typixdeck-notes.desktop"],
+          "releaseNotes": {
+            "zh-CN": "https://registry.example.invalid/typixdeck/v1/stable/changelogs/net.typixnode.notes/zh-CN.md"
+          },
+          "permissions": {
+            "network": false,
+            "serialDevice": false,
+            "audio": false,
+            "inputMonitoring": false,
+            "backgroundService": false,
+            "systemConfiguration": false
+          }
+        }
+      ]
+    },
+    {
+      "id": "com.example.media-studio",
+      "package": "typixdeck-app-media-studio",
+      "currentVersion": "1.0.0-1",
+      "type": "application",
+      "categories": ["audiovideo"],
+      "name": {"zh-CN": "媒体工作台", "en": "Media Studio"},
+      "summary": {"zh-CN": "面向 CM4/CM5 的多媒体工具", "en": "Multimedia tools for CM4/CM5"},
+      "description": {
+        "zh-CN": "示例展示一个不适合 CM0 512MB 内存的多媒体应用。",
+        "en": "Example entry that is not suitable for a 512MB CM0."
+      },
+      "developer": {"name": "Example"},
+      "license": "Proprietary",
+      "icon": "https://registry.example.invalid/typixdeck/v1/stable/icons/com.example.media-studio.png",
+      "versions": [
+        {
+          "version": "1.0.0-1",
+          "releasedAt": "2026-09-01T08:00:00Z",
+          "channel": "stable",
+          "status": "stable",
+          "compatibility": {
+            "arch": ["arm64"],
+            "os": ["raspios-trixie"],
+            "cores": ["cm4", "cm5"],
+            "minMemoryMB": 2048,
+            "minFreeDiskMB": 1024,
+            "display": ["wayland", "x11"],
+            "requiredFeatures": ["audio", "opengl-es-3"]
+          },
+          "artifact": {
+            "arch": "arm64",
+            "filename": "typixdeck-app-media-studio_1.0.0-1_arm64.deb",
+            "url": "https://registry.example.invalid/typixdeck/v1/stable/pool/typixdeck-app-media-studio_1.0.0-1_arm64.deb",
+            "sizeBytes": 10485760,
+            "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+            "installedSizeBytes": 41943040,
+            "depends": [],
+            "recommends": [],
+            "conflicts": [],
+            "provides": []
+          },
+          "desktopIds": ["typixdeck-media-studio.desktop"],
+          "releaseNotes": {
+            "zh-CN": "https://registry.example.invalid/typixdeck/v1/stable/changelogs/com.example.media-studio/zh-CN.md"
+          },
+          "permissions": {
+            "network": true,
+            "serialDevice": false,
+            "audio": true,
+            "inputMonitoring": false,
+            "backgroundService": false,
+            "systemConfiguration": false
+          }
+        }
+      ]
+    }
+  ]
+}

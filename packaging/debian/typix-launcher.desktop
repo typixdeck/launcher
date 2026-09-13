@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=TypixDeck Launcher
+Comment=Full-screen application launcher and store entry point
+Exec=/usr/bin/typix-launcher --ui
+Icon=ai.typixdeck.launcher
+Terminal=false
+Categories=System;
+StartupNotify=false
+X-TypixDeck-Exclude=true
+X-TypixNode-Exclude=true

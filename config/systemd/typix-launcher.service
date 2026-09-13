@@ -1,0 +1,17 @@
+# Target user unit for the packaged implementation.
+# The current legacy unit remains in reference/current-launcher/.
+[Unit]
+Description=TypixDeck full-screen launcher
+After=graphical-session.target
+PartOf=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/typix-launcher --supervisor
+Restart=on-failure
+RestartSec=2
+Environment=GDK_BACKEND=wayland,x11
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=graphical-session.target

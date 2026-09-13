@@ -1,0 +1,3 @@
+# To be installed as part of the packaged Labwc session integration.
+systemctl --user import-environment WAYLAND_DISPLAY DISPLAY XDG_RUNTIME_DIR XDG_SESSION_TYPE XDG_CURRENT_DESKTOP
+systemctl --user restart typix-launcher.service &

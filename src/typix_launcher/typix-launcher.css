@@ -1,0 +1,110 @@
+* {
+  font-family: "Noto Sans CJK SC", "Noto Sans", sans-serif;
+  transition: none;
+}
+
+window,
+.launcher-root {
+  background: #071018;
+  color: #eef8ff;
+}
+
+.launcher-title {
+  color: #f5fbff;
+  font-size: 30px;
+  font-weight: 800;
+}
+
+.launcher-subtitle,
+.launcher-hint,
+.app-count {
+  color: #8da6b8;
+  font-size: 14px;
+}
+
+.header-button {
+  min-width: 76px;
+  min-height: 48px;
+  border: 1px solid #274354;
+  border-radius: 14px;
+  background: #102331;
+  color: #d9f5ff;
+  box-shadow: none;
+}
+
+.header-button:hover,
+.header-button:focus {
+  border-color: #43d5ff;
+  background: #17384a;
+}
+
+.power-button {
+  min-width: 76px;
+  min-height: 48px;
+  border: 1px solid #355166;
+  border-radius: 14px;
+  background: #102331;
+  color: #e5f7ff;
+  box-shadow: none;
+}
+
+.power-button:hover,
+.power-button:focus {
+  border: 3px solid #43d5ff;
+  background: #17384a;
+}
+
+.power-button.danger {
+  border-color: #74414a;
+  color: #ffced2;
+}
+
+.power-button.danger:hover,
+.power-button.danger:focus {
+  border-color: #ff6673;
+  background: #40202a;
+  color: #ffffff;
+}
+
+.app-tile {
+  min-height: 140px;
+  border: 1px solid #1c3747;
+  border-radius: 20px;
+  background: #0d1d29;
+  color: #f4fbff;
+  box-shadow: none;
+}
+
+.app-tile:hover {
+  border-color: #3b6d82;
+  background: #122937;
+}
+
+.app-tile:focus {
+  border: 3px solid #43d5ff;
+  background: #123142;
+  color: #ffffff;
+}
+
+.app-name {
+  color: #f5fbff;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.app-category {
+  color: #6eddfb;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+scrollbar {
+  background: transparent;
+}
+
+scrollbar slider {
+  min-width: 7px;
+  min-height: 48px;
+  border-radius: 8px;
+  background: #35576a;
+}

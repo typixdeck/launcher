@@ -1,0 +1,19 @@
+{
+  "schemaVersion": 1,
+  "channel": "stable",
+  "registryBase": "https://registry.example.invalid/typixdeck/v1",
+  "trustedKeys": [
+    "/usr/share/typix-launcher/keys/typixdeck-store-2026.minisign.pub",
+    "/usr/share/typix-launcher/keys/typixdeck-store-next.minisign.pub"
+  ],
+  "ui": {
+    "cm0": "lite",
+    "cm4": "full",
+    "cm5": "full"
+  },
+  "cache": {
+    "manifestPath": "${XDG_STATE_HOME:-$HOME/.local/state}/typix-launcher/registry/stable.json",
+    "downloadPath": "${XDG_CACHE_HOME:-$HOME/.cache}/typix-launcher/downloads",
+    "retentionDays": 30
+  }
+}
