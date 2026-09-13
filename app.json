@@ -1,0 +1,62 @@
+{
+  "schemaVersion": 1,
+  "repository": "typixdeck/launcher",
+  "distribution": "complete-deb",
+  "application": {
+    "id": "ai.typixdeck.launcher",
+    "package": "typix-launcher",
+    "name": {
+      "zh-CN": "Typix 启动器",
+      "en": "Typix Launcher"
+    },
+    "summary": {
+      "zh-CN": "仅显示桌面快捷方式的原生全屏启动器"
+    },
+    "description": {
+      "zh-CN": "完整 GTK3 启动器，读取 XDG Desktop 快捷方式，键盘启动原生应用并请求全屏，应用关闭后返回。"
+    },
+    "categories": [
+      "System"
+    ],
+    "desktopFile": "typix-launcher.desktop",
+    "runtime": {
+      "kind": "python-module",
+      "module": "typix_launcher",
+      "root": "/usr/lib/python3/dist-packages"
+    },
+    "requiredPayload": [
+      "/usr/bin/typix-launcher",
+      "/usr/lib/python3/dist-packages/typix_launcher/__init__.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/__main__.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/app.py",
+      "/usr/share/typix-launcher/typix-launcher.css"
+    ],
+    "compatibility": {
+      "arch": [
+        "arm64"
+      ],
+      "minMemoryMB": 128,
+      "minFreeDiskMB": 64,
+      "display": [
+        "wayland",
+        "x11"
+      ],
+      "requiredFeatures": []
+    }
+  },
+  "release": {
+    "version": "0.2.0-1",
+    "file": "dist/typix-launcher_0.2.0-1_all.deb",
+    "sha256": "9292a77465823e60bd0776505c986165dc5caebcd5be839356a1871318c3375a"
+  },
+  "screenshots": [
+    {
+      "path": "docs/screenshots/home.png",
+      "caption": "桌面快捷方式首页与键盘焦点"
+    },
+    {
+      "path": "docs/screenshots/settings.png",
+      "caption": "开机自动启动设置"
+    }
+  ]
+}
