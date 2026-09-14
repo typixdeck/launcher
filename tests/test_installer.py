@@ -56,6 +56,31 @@ class InstallerTests(unittest.TestCase):
         contents = json.dumps(data or self.catalog).encode()
         return self.api["verify_catalog"](contents, self.private.sign(contents), "raspios-trixie", self.now)
 
+    def test_authorization_accepts_a_real_nonseekable_terminal(self):
+        import pty
+        master, slave = pty.openpty()
+        self.addCleanup(os.close, master)
+        self.addCleanup(os.close, slave)
+        real_open = open
+        terminals = []
+        def terminal_open(path, *args, **kwargs):
+            self.assertEqual(path, "/dev/tty")
+            stream = real_open(os.ttyname(slave), *args, **kwargs)
+            terminals.append(stream)
+            return stream
+        def process(command, *, stdin):
+            self.assertTrue(stdin.isatty())
+            self.assertFalse(stdin.seekable())
+            self.assertTrue(stdin.readable())
+            self.assertEqual(command[:4], ["/usr/bin/sudo", "/usr/bin/python3", "-I", "-c"])
+            return SimpleNamespace(wait=lambda: 0)
+        self.api["open"] = terminal_open
+        with patch.object(Path, "is_file", return_value=True), \
+             patch.object(self.api["subprocess"], "Popen", side_effect=process) as spawn:
+            self.api["run_privileged"]("fixture-stage")
+        spawn.assert_called_once()
+        self.assertTrue(terminals[0].closed)
+
     def test_both_pinned_applications_are_selected(self):
         self.assertEqual([item["package"] for item in self.verify()], ["typix-launcher", "typix-store"])
 

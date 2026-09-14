@@ -383,7 +383,7 @@ def run_privileged(argument):
     require(Path("/usr/bin/sudo").is_file(), "sudo is required for bounded package installation")
     # The script is piped into sh, so obtain prompts from the actual terminal.
     try:
-        terminal = open("/dev/tty", "r+")
+        terminal = open("/dev/tty", "rb", buffering=0)
     except OSError as exc:
         raise InstallError("Installation needs a terminal for sudo/apt prompts. Download install.sh, then run sh install.sh in your terminal") from exc
     command = ["/usr/bin/sudo", "/usr/bin/python3", "-I", "-c", COMMON_SOURCE + "\n" + ROOT_SOURCE, argument]
