@@ -37,12 +37,26 @@ class PreviewSettings:
         return self.state()
 
 
+class PreviewRuntime:
+    mode = "auto"
+
+    def read(self):
+        return self.mode
+
+    def effective(self):
+        return "single" if self.mode == "single" else "resident"
+
+    def save(self, mode):
+        self.mode = mode
+
+
 class Preview(Launcher):
     def __init__(self):
         super().__init__()
         self.set_application_id("ai.typixdeck.launcher.Preview")
         self.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
         self.autostart = PreviewSettings()
+        self.runtime = PreviewRuntime()
 
     def watch_desktop_dirs(self):
         pass

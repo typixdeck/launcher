@@ -89,6 +89,7 @@ class ForeignToplevelClient:
         self.connection = connection
         self.windows: dict[int, Toplevel] = {}
         self.manager: int | None = None
+        self.seat: int | None = None
         self._registry = 2
         self._next_id = 3
         self._callbacks: set[int] = set()
@@ -175,6 +176,10 @@ class ForeignToplevelClient:
                     self.manager = self._allocate()
                     self._send(self._registry, 0, _UINT.pack(name) + _string(MANAGER)
                                + struct.pack("=II", 3, self.manager))
+                elif interface == "wl_seat" and self.seat is None:
+                    self.seat = self._allocate()
+                    self._send(self._registry, 0, _UINT.pack(name) + _string("wl_seat")
+                               + struct.pack("=II", 1, self.seat))
             return
         if identifier == self.manager:
             if opcode == 0:
@@ -210,6 +215,12 @@ class ForeignToplevelClient:
     def set_fullscreen(self, window: Toplevel) -> None:
         self._send(window.identifier, 8, _UINT.pack(0))  # compositor selects output
 
+    def activate(self, window: Toplevel) -> None:
+        if self.seat is None:
+            raise OSError("No compositor seat for activation")
+        self._send(window.identifier, 3)  # unset_minimized
+        self._send(window.identifier, 4, _UINT.pack(self.seat))
+
     def snapshot(self) -> list[dict[str, Any]]:
         return [
             {"app_id": item.app_id, "title": item.title, "parent": item.parent,
@@ -221,6 +232,39 @@ class ForeignToplevelClient:
         if self.connection is not None:
             self.connection.close()
             self.connection = None
+
+
+def activate_existing(path: Path) -> str:
+    """Return activated/unavailable/none/unsupported without spawning a process.
+
+    A known existing window is never reported as absent merely because the
+    compositor denies focus; callers can avoid accidentally duplicating it.
+    """
+    ids = application_ids(path)
+    if not ids or not os.environ.get("WAYLAND_DISPLAY"):
+        return "unsupported"
+    client = ForeignToplevelClient()
+    found = False
+    try:
+        client.connect(timeout=0.7)
+        matches = [item for item in client.windows.values()
+                   if item.ready and not item.parent and item.app_id.casefold() in ids]
+        if not matches:
+            return "none"
+        found = True
+        if len(matches) != 1:
+            # App IDs do not identify a particular document/window. Let the
+            # user choose with Alt+Tab instead of focusing an arbitrary one.
+            return "unavailable"
+        window = matches[0]
+        client.activate(window)
+        client.set_fullscreen(window)
+        client._roundtrip(0.7)
+        return "activated" if ACTIVATED in window.states else "unavailable"
+    except (OSError, ValueError, UnicodeError, struct.error):
+        return "unavailable" if found else "unsupported"
+    finally:
+        client.close()
 
 
 class FullscreenSession:

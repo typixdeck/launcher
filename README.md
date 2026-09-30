@@ -1,11 +1,11 @@
 # TypixDeck Launcher
 
-面向官方 Raspberry Pi OS ARM64 的原生全屏启动器，主验收设备为 CM4。只显示用户桌面上的 `.desktop` 快捷方式；保持深色 GTK3、约 800×600 逻辑布局、三列应用网格和键盘导航。启动应用后释放 Launcher 界面，应用关闭后返回桌面。
+面向官方 Raspberry Pi OS ARM64 的原生全屏启动器，主验收设备为 CM4。只显示用户桌面上的 `.desktop` 快捷方式；保持深色 GTK3、约 800×600 逻辑布局、三列应用网格和键盘导航。支持单应用省内存与后台切换两种运行方式，可在设置中选择。
 
 - 平台：官方 Raspberry Pi OS ARM64 Bookworm / Trixie，兼容性与可用功能按运行时探测。
 - UI：Python 3 + PyGObject + GTK3；禁止 WebView/Electron/Node。
 - Store：由独立 `typix-store` 包提供；在桌面添加其 `.desktop` 快捷方式后出现在 Launcher 中。
-- 内存策略：进入应用前 UI 先退出，应用期间只保留轻量 supervisor；资源不足时按实际能力降级。
+- 内存策略：自动按内存选择；单应用模式先退出 Launcher UI，后台模式保留窗口供 Alt+Tab 切换。
 
 <!-- app-screenshots:start -->
 
@@ -59,6 +59,24 @@ sh install.sh --start
 
 开机启动仍由 Launcher 设置页（`F9`）控制。同版本再次运行会重新验证，apt 保持已安装版本；更高的已安装版本不会被降级。下载有大小、读取超时与空间限制，断网或取消后可重新运行；包事务开始后请等待 apt 完成，安装器不会强制终止 dpkg，也不会自动重放失败事务。
 
+## 应用运行模式（0.3.0）
+
+![应用运行模式设置](docs/screenshots/runtime-settings.png)
+
+打开设置（F9）→ **应用运行模式**，选项立即保存到用户配置，下一次启动应用时使用：
+
+| 模式 | 行为 |
+| --- | --- |
+| 自动选择 | 按运行时读取的总内存选择：至少 1.5 GiB 使用后台模式，其余或检测失败使用单应用模式；不按 CM0/CM4 名称判断 |
+| 单应用 · 省内存 | 启动应用前退出 Launcher 界面，等待前台应用关闭后重建；应用运行期间 Alt+Tab 中没有 Launcher |
+| 后台模式 · Alt+Tab 切换 | 保留 Launcher 窗口，可切回启动其他应用；窗口失去焦点时停止电量/Wi-Fi 采样 |
+
+后台模式对同一个 `.desktop` 启动项抑制重复启动；再次点击时，通过支持的 Wayland 窗口协议请求切回已有主窗口。已检测到窗口却不能激活时会提示使用 Alt+Tab，不再启动一份副本。X11/不支持协议的桌面保留“同一启动项不重复启动”，需要用系统窗口切换。多个窗口共享同一 app ID 时不猜测目标，改为提示 Alt+Tab。不同快捷方式即使使用同一程序，也会分别执行各自的文件或 URL 参数。
+
+切回单应用模式时保留现有工作，需要先关闭由 Launcher 打开的后台应用再启动新的应用；不会强杀程序或丢弃编辑内容。此设置管理 Launcher 启动的应用，不会关闭用户另外启动的后台服务。首次用后台模式多开重型应用仍受实际可用内存限制。
+
+配置：`$XDG_CONFIG_HOME/typix-launcher/runtime.json`（默认 `~/.config/typix-launcher/runtime.json`），写入失败保留原设置。源码预览使用内存中的演示设置，不写这个文件。
+
 ## 电量与 Wi-Fi（0.2.2）
 
 顶部使用纯图标表示电池电量和 Wi-Fi 信号，每 10 秒更新；鼠标悬停可查看来源、读数与状态。没有状态按钮或刷新按钮，每次打开 Launcher 自动重新读取桌面快捷方式，目录变化也会自动更新。应用数量位于标题下方，保留三列网格。
@@ -78,6 +96,7 @@ src/typix_launcher/
 ├── desktop.py       FreeDesktop 入口发现、Exec 展开、原子启动请求
 ├── settings.py      systemd 用户级 autostart 状态与命令
 ├── supervisor.py    UI 启动、前台应用等待、UI 恢复
+├── runtime.py       运行模式偏好、内存检测、逐启动项任务跟踪
 ├── app.py           CM4 旧布局迁移 + 设置入口
 └── typix-launcher.css
 ```
@@ -85,12 +104,12 @@ src/typix_launcher/
 行为：
 
 1. `typix-launcher --supervisor` 启动 `typix_launcher --ui`。
-2. 用户激活 tile 时，UI 先原子写入 `.desktop` 路径，再调用 `quit()` 退出。
-3. supervisor 读取请求并展开 Exec，启动前台应用。
-4. 应用退出后 supervisor 重新启动 UI。
+2. 单应用模式激活 tile 时，UI 先原子写入 `.desktop` 路径，再调用 `quit()` 退出。后台模式在工作线程中启动并跟踪应用，GTK 窗口保持存在。
+3. 单应用模式下 supervisor 读取请求并展开 Exec，启动前台应用。
+4. 单应用退出后 supervisor 重新启动 UI；后台模式中的应用退出则释放对应任务记录。
 5. UI 崩溃或无请求退出时，supervisor 延后重启，systemd 只在 supervisor 自身失败时介入。
 
-测试 `test_supervisor.py` 明确断言事件顺序是：
+测试 `test_supervisor.py` 明确断言单应用模式事件顺序是：
 
 ```text
 ui-start -> ui-quit -> app-run -> ui-start
@@ -140,7 +159,7 @@ systemctl --user start typix-launcher.service
 产物：
 
 ```text
-dist/typix-launcher_0.2.2-1_all.deb
+dist/typix-launcher_0.3.0-1_all.deb
 ```
 
 运行依赖：
@@ -153,11 +172,13 @@ python3, python3-gi, gir1.2-gtk-3.0, xdg-user-dirs
 
 ## 测试
 
+另有 `python3 tools/check-runtime-ui.py` 检查 GTK 模式切换与保存；`python3 tools/check-runtime-wayland.py --live-fixtures` 会短暂显示两个测试窗口，验证切换、重复启动抑制和退出，并恢复原窗口焦点，不启动真实用户应用。
+
 ```bash
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-56 项测试覆盖 catalog 样例、desktop 解析、autostart 命令、supervisor 恢复顺序，以及状态缺失/断连、信号边界和读写互斥。CM4 已验证实时读数、800×600 布局、非交互状态图标和采样进程退出。可在 GTK 会话中运行 `PYTHONPATH=src python3 tools/check-status-ui.py /tmp/launcher-preview.png` 重现隔离预览，不读取真实桌面清单。
+65 项测试覆盖 catalog 样例、desktop 解析、autostart 命令、supervisor 恢复顺序，以及状态缺失/断连、信号边界和读写互斥。CM4 已验证实时读数、800×600 布局、非交互状态图标和采样进程退出。可在 GTK 会话中运行 `PYTHONPATH=src python3 tools/check-status-ui.py /tmp/launcher-preview.png` 重现隔离预览，不读取真实桌面清单。
 
 ## 文档索引
 

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import subprocess
 import sys
+import threading
 from pathlib import Path
 
 import gi
@@ -16,6 +17,8 @@ from . import desktop
 from .status_ui import StatusStrip
 from .settings import AutostartController
 from .supervisor import Supervisor
+from .runtime import AppJobs, RuntimePreferences
+from .fullscreen import activate_existing
 
 APP_ID = "ai.typixdeck.launcher"
 
@@ -40,6 +43,10 @@ class Launcher(Gtk.Application):
         self.reload_source = 0
         self.autostart = AutostartController()
         self.status_strip = None
+        self.runtime = RuntimePreferences()
+        self.app_jobs = AppJobs(self.run_resident_app)
+        self.activating = False
+        self.closing = False
 
     def do_activate(self) -> None:
         if self.window is not None:
@@ -53,6 +60,7 @@ class Launcher(Gtk.Application):
         window.set_decorated(False)
         window.set_default_size(800, 600)
         window.connect("key-press-event", self.on_key_press)
+        window.connect("delete-event", self.on_delete)
         window.add_events(Gdk.EventMask.BUTTON_PRESS_MASK | Gdk.EventMask.TOUCH_MASK)
         window.connect("button-press-event", self.on_pointer_event)
         window.connect("touch-event", self.on_pointer_event)
@@ -132,6 +140,7 @@ class Launcher(Gtk.Application):
         GLib.idle_add(self.ensure_fullscreen)
 
     def do_shutdown(self) -> None:
+        self.closing = True
         if self.status_strip is not None:
             self.status_strip.close()
         Gtk.Application.do_shutdown(self)
@@ -227,12 +236,65 @@ class Launcher(Gtk.Application):
         return image
 
     def launch(self, _button: Gtk.Button, path: Path) -> None:
+        if self.app_jobs.contains(path):
+            self.activate_running(path)
+            return
+        if self.runtime.effective() == "resident":
+            if self.status_strip is not None:
+                self.status_strip.set_active(False)
+            try:
+                self.app_jobs.start(path, lambda error: GLib.idle_add(self.app_finished, error))
+            except (OSError, RuntimeError) as exc:
+                self.app_finished(str(exc))
+            return
+        if self.app_jobs.count():
+            self.show_error("请先关闭后台应用", "单应用模式将在现有应用关闭后生效，不会强制结束正在进行的工作。")
+            return
         try:
             desktop.atomic_request(path)
         except OSError as exc:
             self.show_error("无法提交启动请求", str(exc))
             return
         self.quit()
+
+    def run_resident_app(self, path: Path) -> int:
+        # Only AppJobs knows which desktop entry we launched. Shared app IDs
+        # cannot distinguish shortcuts with different files, URLs or arguments.
+        return Supervisor().default_run_app(path)
+
+    def app_finished(self, error: str) -> bool:
+        if self.closing:
+            return GLib.SOURCE_REMOVE
+        # Never steal focus when a background app exits. Errors remain visible
+        # in the launcher when the user next switches back.
+        if error and self.count_label is not None:
+            self.count_label.set_text(error)
+        if self.status_strip is not None and self.window is not None:
+            self.status_strip.set_active(self.window.is_active())
+        return GLib.SOURCE_REMOVE
+
+    def activate_running(self, path: Path) -> None:
+        if self.activating:
+            return
+        self.activating = True
+
+        def activate():
+            result = activate_existing(path)
+            GLib.idle_add(done, result)
+
+        def done(result):
+            self.activating = False
+            if not self.closing and result != "activated" and self.count_label is not None:
+                self.count_label.set_text("应用正在运行或启动中 · Alt+Tab 切换")
+            return GLib.SOURCE_REMOVE
+
+        threading.Thread(target=activate, daemon=True, name="launcher-focus").start()
+
+    def on_delete(self, *_args) -> bool:
+        if self.app_jobs.count():
+            self.show_error("仍有应用在运行", "请先关闭由 Launcher 打开的应用；Alt+Tab 可以切换。")
+            return True
+        return False
 
     def show_error(self, title: str, detail: str) -> None:
         dialog = Gtk.MessageDialog(
@@ -250,7 +312,7 @@ class Launcher(Gtk.Application):
         if self.window is None:
             return
         dialog = Gtk.Dialog(title="启动器设置", transient_for=self.window, modal=True)
-        dialog.set_default_size(560, 240)
+        dialog.set_default_size(600, 360)
         dialog.add_button("关闭", Gtk.ResponseType.CLOSE)
         content_area = dialog.get_content_area()
         content_area.set_spacing(14)
@@ -277,6 +339,44 @@ class Launcher(Gtk.Application):
         row.pack_start(text_box, True, True, 0)
         row.pack_start(switch, False, False, 0)
         content_area.pack_start(row, False, False, 0)
+        mode_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
+        mode_box.set_border_width(18)
+        mode_box.pack_start(Gtk.Label(label="应用运行模式", xalign=0), False, False, 0)
+        mode = Gtk.ComboBoxText()
+        for value, label in (("auto", "自动选择"), ("single", "单应用 · 省内存"),
+                             ("resident", "后台模式 · Alt+Tab 切换")):
+            mode.append(value, label)
+        mode.set_active_id(self.runtime.read())
+        explanation = Gtk.Label(xalign=0)
+        explanation.set_line_wrap(True)
+        explanation.set_max_width_chars(45)
+        explanation.get_style_context().add_class("launcher-hint")
+
+        def explain():
+            text = ("启动应用时释放 Launcher 界面，应用退出后返回。"
+                    if self.runtime.effective() == "single" else
+                    "保留 Launcher 窗口，Alt+Tab 可切换；再次点击运行中的应用会尝试切回。")
+            if self.runtime.read() == "auto":
+                text = "根据本机内存选择。" + text
+            if self.app_jobs.count() and self.runtime.effective() == "single":
+                text += " 请先关闭现有后台应用。"
+            explanation.set_text(text)
+
+        def changed(combo):
+            try:
+                self.runtime.save(combo.get_active_id())
+            except (OSError, ValueError) as exc:
+                combo.handler_block(handler)
+                combo.set_active_id(self.runtime.read())
+                combo.handler_unblock(handler)
+                self.show_error("无法保存运行模式", str(exc))
+            explain()
+
+        handler = mode.connect("changed", changed)
+        explain()
+        mode_box.pack_start(mode, False, False, 0)
+        mode_box.pack_start(explanation, False, False, 0)
+        content_area.pack_start(mode_box, False, False, 0)
         dialog.show_all()
         dialog.run()
         dialog.destroy()

@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-VERSION=${VERSION:-0.2.2-1}
+VERSION=${VERSION:-0.3.0-1}
 STAGE="$ROOT/build/package"
 DIST="$ROOT/dist"
 rm -rf "$STAGE"
@@ -18,8 +18,7 @@ X-Typix-Compatible-OS: raspios-bookworm,raspios-trixie
 Recommends: wlopm, network-manager
 Description: TypixDeck full-screen launcher and app supervisor
  Native GTK3 launcher for CM0/CM4/CM5 devices. It discovers FreeDesktop
- entries, exits before launching an application, and restores itself when
- the foreground application exits.
+ entries and offers low-memory single-app or resident multitasking modes.
 CONTROL
 printf '%s\n' 'Format: https://www.debian.org/doc/packaging-manuals/copyright-format/1.0/' 'Upstream-Name: typix-launcher' > "$STAGE/usr/share/doc/typix-launcher/copyright"
 cat > "$STAGE/usr/bin/typix-launcher" <<'RUNNER'

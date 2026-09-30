@@ -10,6 +10,7 @@ from unittest.mock import Mock, patch
 from typix_launcher.fullscreen import (
     ACTIVATED, FULLSCREEN, MANAGER, ForeignToplevelClient, FullscreenSession,
     Toplevel, _string, application_ids,
+    activate_existing,
 )
 
 
@@ -316,6 +317,50 @@ class WireProtocolTests(unittest.TestCase):
         self.server.sendall(struct.pack("=II", 1, 7 << 16))
         with self.assertRaises(ValueError):
             self.client.poll()
+
+    def test_activate_unminimizes_and_uses_bound_seat(self):
+        window = Toplevel(10)
+        with self.assertRaises(OSError):
+            self.client.activate(window)
+        self.client.seat = 7
+        self.client.activate(window)
+        self.assertEqual(self.server.recv(20), frame(10, 3) + frame(10, 4, struct.pack("=I", 7)))
+
+
+class ActivationTests(unittest.TestCase):
+    def test_multiple_windows_with_same_app_id_are_ambiguous(self):
+        with patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-test"}), \
+             patch("typix_launcher.fullscreen.application_ids", return_value={"editor"}), \
+             patch("typix_launcher.fullscreen.ForeignToplevelClient") as factory:
+            client = factory.return_value
+            client.windows = {10: Toplevel(10, "editor", ready=True),
+                              11: Toplevel(11, "editor", ready=True)}
+            self.assertEqual(activate_existing(Path("editor.desktop")), "unavailable")
+            client.activate.assert_not_called()
+            client.close.assert_called_once()
+
+    def test_existing_window_focus_refusal_is_not_treated_as_absent(self):
+        window = Toplevel(10, "editor", ready=True)
+        with patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-test"}), \
+             patch("typix_launcher.fullscreen.application_ids", return_value={"editor"}), \
+             patch("typix_launcher.fullscreen.ForeignToplevelClient") as factory:
+            client = factory.return_value
+            client.windows = {10: window}
+            self.assertEqual(activate_existing(Path("editor.desktop")), "unavailable")
+            client.activate.assert_called_once_with(window)
+            client.close.assert_called_once()
+            window.states.add(ACTIVATED)
+            self.assertEqual(activate_existing(Path("editor.desktop")), "activated")
+
+    def test_dialogs_and_unrelated_windows_are_not_activated(self):
+        with patch.dict(os.environ, {"WAYLAND_DISPLAY": "wayland-test"}), \
+             patch("typix_launcher.fullscreen.application_ids", return_value={"editor"}), \
+             patch("typix_launcher.fullscreen.ForeignToplevelClient") as factory:
+            client = factory.return_value
+            client.windows = {10: Toplevel(10, "editor-other", ready=True),
+                              11: Toplevel(11, "editor", parent=10, ready=True)}
+            self.assertEqual(activate_existing(Path("editor.desktop")), "none")
+            client.activate.assert_not_called()
 
 
 if __name__ == "__main__":
