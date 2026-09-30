@@ -13,6 +13,7 @@ gi.require_version("Gtk", "3.0")
 from gi.repository import Gdk, GdkPixbuf, Gio, GLib, Gtk, Pango
 
 from . import desktop
+from .status_ui import StatusStrip
 from .settings import AutostartController
 from .supervisor import Supervisor
 
@@ -38,6 +39,7 @@ class Launcher(Gtk.Application):
         self.monitors: list[Gio.FileMonitor] = []
         self.reload_source = 0
         self.autostart = AutostartController()
+        self.status_strip = None
 
     def do_activate(self) -> None:
         if self.window is not None:
@@ -64,14 +66,14 @@ class Launcher(Gtk.Application):
         title_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         title = Gtk.Label(label="TypixDeck", xalign=0)
         title.get_style_context().add_class("launcher-title")
-        subtitle = Gtk.Label(label="选择桌面快捷方式开始", xalign=0)
+        subtitle = self.count_label = Gtk.Label(label="桌面快捷方式", xalign=0)
         subtitle.get_style_context().add_class("launcher-subtitle")
         title_box.pack_start(title, False, False, 0)
         title_box.pack_start(subtitle, False, False, 0)
         header.pack_start(title_box, True, True, 0)
-        self.count_label = Gtk.Label(xalign=1)
-        self.count_label.get_style_context().add_class("app-count")
-        header.pack_start(self.count_label, False, False, 0)
+        self.status_strip = StatusStrip()
+        header.pack_start(self.status_strip, False, False, 0)
+        window.connect("notify::is-active", lambda win, _prop: self.status_strip.set_active(win.is_active()))
         refresh = Gtk.Button(label="刷新")
         refresh.set_tooltip_text("重新扫描桌面应用（F5）")
         refresh.connect("clicked", lambda _button: self.reload())
@@ -133,6 +135,11 @@ class Launcher(Gtk.Application):
         window.fullscreen()
         GLib.idle_add(self.ensure_fullscreen)
 
+    def do_shutdown(self) -> None:
+        if self.status_strip is not None:
+            self.status_strip.close()
+        Gtk.Application.do_shutdown(self)
+
     def load_css(self) -> None:
         provider = Gtk.CssProvider()
         provider.load_from_path(str(css_path()))
@@ -182,7 +189,7 @@ class Launcher(Gtk.Application):
             self.grid.add(message)
         self.grid.show_all()
         if self.count_label is not None:
-            self.count_label.set_text(f"{len(apps)} 个应用")
+            self.count_label.set_text(f"{len(apps)} 个桌面应用")
         if self.buttons:
             GLib.idle_add(self.buttons[0].grab_focus)
 
@@ -399,6 +406,8 @@ class Launcher(Gtk.Application):
                 return True
             return event.keyval in {Gdk.KEY_Escape, Gdk.KEY_F11}
         index = self.focused_index()
+        if index is None and event.keyval in {Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_space}:
+            return False  # Let the focused header/status button activate normally.
         if index is None:
             index = 0
         if event.keyval == Gdk.KEY_Left:

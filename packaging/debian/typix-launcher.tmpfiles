@@ -1,0 +1,3 @@
+# Shared read-only access permits rootless diagnostics to take a shared lock.
+# Copilot's privileged writer holds an exclusive lock on the same root-owned file.
+f /run/lock/typix-copilot-write.lock 0644 root root -

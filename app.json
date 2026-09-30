@@ -10,10 +10,10 @@
       "en": "Typix Launcher"
     },
     "summary": {
-      "zh-CN": "仅显示桌面快捷方式的原生全屏启动器"
+      "zh-CN": "桌面快捷方式、实时电量与 Wi-Fi 信号的原生全屏启动器"
     },
     "description": {
-      "zh-CN": "完整 GTK3 启动器，读取 XDG Desktop 快捷方式，键盘启动原生应用并请求全屏，应用关闭后返回。"
+      "zh-CN": "完整 GTK3 启动器，读取桌面快捷方式，启动应用并请求全屏，应用关闭后返回。顶部显示系统电池或 CW2015 参考电量、Wi-Fi 信号，支持键盘查看详情。"
     },
     "categories": [
       "System"
@@ -29,7 +29,11 @@
       "/usr/lib/python3/dist-packages/typix_launcher/__init__.py",
       "/usr/lib/python3/dist-packages/typix_launcher/__main__.py",
       "/usr/lib/python3/dist-packages/typix_launcher/app.py",
-      "/usr/share/typix-launcher/typix-launcher.css"
+      "/usr/share/typix-launcher/typix-launcher.css",
+      "/usr/lib/python3/dist-packages/typix_launcher/status.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/status_ui.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/battery.py",
+      "/usr/lib/tmpfiles.d/typix-launcher.conf"
     ],
     "compatibility": {
       "arch": [
@@ -45,11 +49,15 @@
     }
   },
   "release": {
-    "version": "0.2.0-1",
-    "file": "dist/typix-launcher_0.2.0-1_all.deb",
-    "sha256": "9292a77465823e60bd0776505c986165dc5caebcd5be839356a1871318c3375a"
+    "version": "0.2.1-1",
+    "file": "dist/typix-launcher_0.2.1-1_all.deb",
+    "sha256": "080d1341ce90b8f00247aee31cb31bbbb0ba249d902722b0cb449cd3e29f46a7"
   },
   "screenshots": [
+    {
+      "path": "docs/screenshots/status.png",
+      "caption": "0.2.1 电量与 Wi-Fi 状态栏（CM4 GTK 渲染，演示数据）"
+    },
     {
       "path": "docs/screenshots/home.png",
       "caption": "桌面快捷方式首页与键盘焦点"
