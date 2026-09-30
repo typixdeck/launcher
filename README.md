@@ -131,6 +131,8 @@ systemctl --user start typix-launcher.service
 
 ## 构建
 
+在 CM4 上用 ChatGPT 修改源码、运行独立预览和通过 GitHub 与 Mac 交接，见 [语音编程指南](docs/VOICE-CODING.md)。`python3 tools/preview.py` 使用当前 checkout 的界面代码和演示数据，不触发设备电源或安装操作。
+
 ```bash
 ./build-deb.sh
 ```
