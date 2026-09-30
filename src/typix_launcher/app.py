@@ -43,6 +43,7 @@ class Launcher(Gtk.Application):
 
     def do_activate(self) -> None:
         if self.window is not None:
+            self.reload()
             self.window.present()
             return
         self.load_css()
@@ -74,11 +75,6 @@ class Launcher(Gtk.Application):
         self.status_strip = StatusStrip()
         header.pack_start(self.status_strip, False, False, 0)
         window.connect("notify::is-active", lambda win, _prop: self.status_strip.set_active(win.is_active()))
-        refresh = Gtk.Button(label="刷新")
-        refresh.set_tooltip_text("重新扫描桌面应用（F5）")
-        refresh.connect("clicked", lambda _button: self.reload())
-        refresh.get_style_context().add_class("header-button")
-        header.pack_start(refresh, False, False, 0)
         settings = Gtk.Button(label="设置")
         settings.set_tooltip_text("打开启动器设置（F9）")
         settings.get_style_context().add_class("header-button")
@@ -104,7 +100,7 @@ class Launcher(Gtk.Application):
         root.pack_start(scroll, True, True, 0)
 
         footer = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=10)
-        hint = Gtk.Label(label="方向键移动 · Enter 打开 · F5 刷新 · F9 设置 · F10 电源", xalign=0)
+        hint = Gtk.Label(label="方向键移动 · Enter 打开 · F9 设置 · F10 电源", xalign=0)
         hint.get_style_context().add_class("launcher-hint")
         footer.pack_start(hint, True, True, 0)
 

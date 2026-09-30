@@ -54,7 +54,7 @@ def main():
             time.sleep(.01)
         minimum, _ = root.get_preferred_width()
         assert minimum <= 800, f'header too wide: {minimum}'
-        assert all(item[0].get_can_focus() for item in app.status_strip.items)
+        assert all(isinstance(item, Gtk.Image) and not item.get_can_focus() for item in app.status_strip.items)
         with patch.object(app, 'focused_index', return_value=None):
             assert app.on_key_press(app.window, SimpleNamespace(keyval=Gdk.KEY_Return)) is False
         pixbuf = offscreen.get_pixbuf()
@@ -66,7 +66,7 @@ def main():
         app.status_strip.child = child
         app.status_strip.close()
         assert child.poll() is not None, 'background reader survived launcher shutdown'
-        print('800x600 layout, keyboard status activation and reader shutdown: PASS')
+        print('800x600 layout, non-interactive status icons and reader shutdown: PASS')
     finally:
         if child and child.poll() is None:
             child.kill()

@@ -9,9 +9,9 @@
 
 <!-- app-screenshots:start -->
 
-![0.2.1 电量与 Wi-Fi 状态栏](docs/screenshots/status.png)
+![0.2.2 电量与 Wi-Fi 状态栏](docs/screenshots/status.png)
 
-0.2.1 状态栏：CM4 原生 GTK 800×600 渲染，使用演示电量、信号和应用条目，不含设备安装清单。
+0.2.2 状态栏：CM4 原生 GTK 800×600 渲染，使用演示电量、信号和应用条目，不含设备安装清单。
 
 ![桌面快捷方式首页与键盘焦点](docs/screenshots/home.png)
 
@@ -59,13 +59,13 @@ sh install.sh --start
 
 开机启动仍由 Launcher 设置页（`F9`）控制。同版本再次运行会重新验证，apt 保持已安装版本；更高的已安装版本不会被降级。下载有大小、读取超时与空间限制，断网或取消后可重新运行；包事务开始后请等待 apt 完成，安装器不会强制终止 dpkg，也不会自动重放失败事务。
 
-## 电量与 Wi-Fi（0.2.1）
+## 电量与 Wi-Fi（0.2.2）
 
-顶部显示电池百分比和 Wi-Fi 信号强度，每 10 秒更新。点击图标或用 Tab / Enter 可以查看来源、读数与状态。应用数量移到标题下方，保留三列网格。
+顶部使用纯图标表示电池电量和 Wi-Fi 信号，每 10 秒更新；鼠标悬停可查看来源、读数与状态。没有状态按钮或刷新按钮，每次打开 Launcher 自动重新读取桌面快捷方式，目录变化也会自动更新。应用数量位于标题下方，保留三列网格。
 
 - 优先读取 Linux `power_supply` 系统电池，支持充电图标；不会误用蓝牙鼠标/键盘的电池。
-- 没有系统电池接口时，可使用已安装 Copilot 的可信板载配置读取 DIY 固件 `BATTERY_STATUS`。CW2015 读数显示 `≈`，属于参考电量，不能等同于校准后的 STC3117 主电量计。
-- 断开、休眠中的电量计、读取失败或刷写占用时显示 `--`，不伪造 0%。该读取不会唤醒电量计、切屏、重启、刷写或修改 NVS。
+- 没有系统电池接口时，可使用已安装 Copilot 的可信板载配置读取 DIY 固件 `BATTERY_STATUS`。CW2015 悬停详情显示参考读数，属于参考电量，不能等同于校准后的 STC3117 主电量计。
+- 断开、休眠中的电量计、读取失败或刷写占用时显示不可用图标，悬停说明读数缺失，不伪造 0%。该读取不会唤醒电量计、切屏、重启、刷写或修改 NVS。
 - 串口读取与 Copilot 共用 root 所有的锁文件；普通用户只能读取文件并加共享锁。前台应用启动前退出采样进程并释放串口。Launcher 不在前台时停止采样。
 - Wi-Fi 使用 NetworkManager 当前连接的信号（不是网速），区分关闭、未连接和未检测到网卡，不触发扫描，也不保存网络名称或地址。
 
@@ -138,7 +138,7 @@ systemctl --user start typix-launcher.service
 产物：
 
 ```text
-dist/typix-launcher_0.2.1-1_all.deb
+dist/typix-launcher_0.2.2-1_all.deb
 ```
 
 运行依赖：
@@ -155,7 +155,7 @@ python3, python3-gi, gir1.2-gtk-3.0, xdg-user-dirs
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-56 项测试覆盖 catalog 样例、desktop 解析、autostart 命令、supervisor 恢复顺序，以及状态缺失/断连、信号边界和读写互斥。CM4 已验证实时读数、800×600 布局、状态按钮键盘入口和采样进程退出。可在 GTK 会话中运行 `PYTHONPATH=src python3 tools/check-status-ui.py /tmp/launcher-preview.png` 重现隔离预览，不读取真实桌面清单。
+56 项测试覆盖 catalog 样例、desktop 解析、autostart 命令、supervisor 恢复顺序，以及状态缺失/断连、信号边界和读写互斥。CM4 已验证实时读数、800×600 布局、非交互状态图标和采样进程退出。可在 GTK 会话中运行 `PYTHONPATH=src python3 tools/check-status-ui.py /tmp/launcher-preview.png` 重现隔离预览，不读取真实桌面清单。
 
 ## 文档索引
 

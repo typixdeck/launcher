@@ -22,19 +22,13 @@ class StatusStrip(Gtk.Box):
         self.child = None
         self.sampled_at = time.monotonic()
         self.items = []
-        for name, value in (('电池', BATTERY_UNKNOWN), ('Wi-Fi', WIFI_UNKNOWN)):
-            button = Gtk.Button()
-            button.get_style_context().add_class('status-button')
-            row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=6)
-            icon = Gtk.Image.new_from_icon_name(value.icon, Gtk.IconSize.BUTTON)
-            icon.set_pixel_size(20)
-            label = Gtk.Label(label=value.text)
-            row.pack_start(icon, False, False, 0)
-            row.pack_start(label, False, False, 0)
-            button.add(row)
-            button.connect('clicked', self.details, name)
-            self.items.append((button, icon, label))
-            self.pack_start(button, False, False, 0)
+        for value in (BATTERY_UNKNOWN, WIFI_UNKNOWN):
+            icon = Gtk.Image.new_from_icon_name(value.icon, Gtk.IconSize.LARGE_TOOLBAR)
+            icon.set_pixel_size(26)
+            icon.set_valign(Gtk.Align.CENTER)
+            icon.get_style_context().add_class('status-icon')
+            self.items.append(icon)
+            self.pack_start(icon, False, False, 8)
         self.apply(BATTERY_UNKNOWN, WIFI_UNKNOWN)
         self.timer = GLib.timeout_add_seconds(10, self.refresh)
         self.refresh()
@@ -42,20 +36,11 @@ class StatusStrip(Gtk.Box):
     def apply(self, battery, wifi):
         if self.closed:
             return GLib.SOURCE_REMOVE
-        for (button, icon, label), value in zip(self.items, (battery, wifi)):
-            icon.set_from_icon_name(value.icon, Gtk.IconSize.BUTTON)
-            label.set_text(value.text)
-            button.set_tooltip_text(value.detail)
-            button.get_accessible().set_name(value.detail)
+        for icon, value in zip(self.items, (battery, wifi)):
+            icon.set_from_icon_name(value.icon, Gtk.IconSize.LARGE_TOOLBAR)
+            icon.set_tooltip_text(value.detail)
+            icon.get_accessible().set_name(value.detail)
         return GLib.SOURCE_REMOVE
-
-    def details(self, button, name):
-        dialog = Gtk.MessageDialog(transient_for=self.get_toplevel(), modal=True,
-                                   message_type=Gtk.MessageType.INFO, buttons=Gtk.ButtonsType.CLOSE,
-                                   text=name)
-        dialog.format_secondary_text(button.get_tooltip_text())
-        dialog.run()
-        dialog.destroy()
 
     def refresh(self):
         if self.closed:

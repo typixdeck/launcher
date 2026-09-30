@@ -109,20 +109,6 @@ scrollbar slider {
   background: #35576a;
 }
 
-.status-button {
-  min-width: 80px;
-  min-height: 44px;
-  padding: 2px 8px;
-  border: 1px solid #274354;
-  border-radius: 12px;
-  background: #0d1d29;
+.status-icon {
   color: #c4edff;
-  font-size: 14px;
-  box-shadow: none;
-}
-
-.status-button:hover,
-.status-button:focus {
-  border-color: #43d5ff;
-  background: #17384a;
 }
