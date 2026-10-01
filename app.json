@@ -51,7 +51,7 @@
       ],
       "requiredFeatures": []
     },
-    "icon": "typix-launcher"
+    "icon": "ai.typixdeck.launcher"
   },
   "release": {
     "version": "0.3.1-1",
