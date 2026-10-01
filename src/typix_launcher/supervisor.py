@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import configparser
+import contextlib
+import os
 import shutil
 import subprocess
 import sys
@@ -11,6 +13,7 @@ from typing import Callable
 
 from . import desktop
 from .fullscreen import FullscreenSession
+from .handoff import SingleHandoff, ENV
 
 
 class Supervisor:
@@ -32,17 +35,28 @@ class Supervisor:
     def default_run_ui(self) -> int:
         return subprocess.run([sys.executable, "-m", "typix_launcher", "--ui"], check=False).returncode
 
-    def default_run_app(self, path: Path) -> int:
-        command, working_dir, terminal = desktop.expand_exec(path)
-        if terminal:
-            terminal_command = shutil.which("x-terminal-emulator") or shutil.which("lxterminal")
-            if terminal_command:
-                command = [terminal_command, "-e", *command]
-        # Snapshot before spawning, so existing windows are never mistaken for
-        # the requested application. The policy uses idempotent Wayland requests.
-        with FullscreenSession(path) as session:
-            child = subprocess.Popen(command, cwd=str(working_dir) if working_dir else None)
-            return session.wait(child)
+    def default_run_app(self, path: Path, *, single_handoff: bool = True) -> int:
+        while True:
+            command, working_dir, terminal = desktop.expand_exec(path)
+            if terminal:
+                terminal_command = shutil.which("x-terminal-emulator") or shutil.which("lxterminal")
+                if terminal_command:
+                    command = [terminal_command, "-e", *command]
+            # The next foreground app starts only after the current app exits.
+            # No Launcher UI is recreated between Store and its selected app.
+            owner = SingleHandoff() if single_handoff else contextlib.nullcontext(None)
+            with owner as handoff, FullscreenSession(path) as session:
+                env = dict(os.environ)
+                if handoff is not None:
+                    env[ENV] = str(handoff.path)
+                else:
+                    env.pop(ENV, None)
+                child = subprocess.Popen(command, cwd=str(working_dir) if working_dir else None, env=env)
+                code = session.wait(child)
+                selected = handoff.selected() if handoff is not None else None
+            if selected is None:
+                return code
+            path = selected
 
     def run_once(self) -> bool:
         destination = desktop.request_path()
@@ -63,6 +77,6 @@ class Supervisor:
                 time.sleep(1.0 if not launched else 0.1)
             except KeyboardInterrupt:
                 return 0
-            except (OSError, ValueError, configparser.Error) as exc:
+            except (OSError, ValueError, configparser.Error, subprocess.SubprocessError) as exc:
                 print(f"TypixDeck launcher: {exc}", file=sys.stderr, flush=True)
                 time.sleep(2)

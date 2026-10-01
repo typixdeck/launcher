@@ -4,7 +4,7 @@
 
 - 平台：官方 Raspberry Pi OS ARM64 Bookworm / Trixie，兼容性与可用功能按运行时探测。
 - UI：Python 3 + PyGObject + GTK3；禁止 WebView/Electron/Node。
-- Store：由独立 `typix-store` 包提供；在桌面添加其 `.desktop` 快捷方式后出现在 Launcher 中。
+- Store：由独立 `typix-store` 包提供；安装应用后自动维护桌面快捷方式，可在 Store 直接启动。
 - 内存策略：自动按内存选择；单应用模式先退出 Launcher UI，后台模式保留窗口供 Alt+Tab 切换。
 
 <!-- app-screenshots:start -->
@@ -144,7 +144,9 @@ systemctl --user start typix-launcher.service
 
 只扫描系统桌面目录的 `*.desktop` 快捷方式。通过 `xdg-user-dir DESKTOP` 获取路径（兼容中文“桌面”或自定义桌面位置），命令不可用时回退到 `~/Desktop`。
 
-不扫描用户或系统的 `applications` 目录，也不因安装了软件就自动加入 Launcher。普通 Linux 应用只需把标准 `.desktop` 快捷方式放到桌面，无需注册 Store。删除桌面快捷方式只会移除 Launcher 入口，不会卸载软件。
+不扫描用户或系统的 `applications` 目录。Store 为已安装的目录应用维护桌面快捷方式，Launcher 仍只读取桌面入口；普通 Linux 应用也可自行添加标准 `.desktop`，无需注册 Store。删除桌面快捷方式只会移除 Launcher 入口，不会卸载软件。首页分类按 FreeDesktop 的工具、网络、影音、游戏、系统字段显示，可用 Tab 到达分类选择框，方向键切换分类。
+
+Store 使用固定 `--open-installed <package> <desktopFile>` 启动接口。Launcher 只检查该包的安装状态、root 管理的 `/usr/share/applications/<desktopFile>` 及其 dpkg 文件归属，不收集全系统安装清单。该接口允许启动被用户从首页隐藏的已安装应用，不扩展首页扫描范围。后台模式继续使用 AppJobs、重复启动抑制和同一全屏策略；单应用模式使用私有 nonce 请求，在 Store 退出后由现有 Supervisor 启动下一应用，中间不恢复首页。无效、过期或已变更的交接请求不会重放。
 
 支持复制的 `.desktop`、符号链接，以及 Link 指向的本地绝对路径和 `file://` URL。保留 `Hidden`、`NoDisplay`、`TryExec`、本地化 Name/Comment、`X-TypixNode-Exclude` 和 `X-TypixDeck-Exclude` 过滤。旧的多目录环境变量不再用于扩展扫描范围。
 
@@ -159,7 +161,7 @@ systemctl --user start typix-launcher.service
 产物：
 
 ```text
-dist/typix-launcher_0.3.0-1_all.deb
+dist/typix-launcher_0.3.1-1_all.deb
 ```
 
 运行依赖：
@@ -178,7 +180,7 @@ python3, python3-gi, gir1.2-gtk-3.0, xdg-user-dirs
 PYTHONPATH=src python3 -m unittest discover -s tests -v
 ```
 
-65 项测试覆盖 catalog 样例、desktop 解析、autostart 命令、supervisor 恢复顺序，以及状态缺失/断连、信号边界和读写互斥。CM4 已验证实时读数、800×600 布局、非交互状态图标和采样进程退出。可在 GTK 会话中运行 `PYTHONPATH=src python3 tools/check-status-ui.py /tmp/launcher-preview.png` 重现隔离预览，不读取真实桌面清单。
+本机测试覆盖 catalog 样例、desktop 解析、autostart 命令、supervisor 恢复顺序，以及状态缺失/断连、信号边界和读写互斥。既有状态栏版本已在 CM4 验证实时读数、800×600 布局、非交互状态图标和采样进程退出。本次新增 Store 交接及分类已做本地逻辑验证，GTK/DBus/真机验收仍待完成。可在 GTK 会话中运行 `PYTHONPATH=src python3 tools/check-status-ui.py /tmp/launcher-preview.png` 重现隔离预览，不读取真实桌面清单。
 
 ## 文档索引
 

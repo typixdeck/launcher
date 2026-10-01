@@ -10,7 +10,7 @@
       "en": "Typix Launcher"
     },
     "summary": {
-      "zh-CN": "支持单应用省内存与后台切换的原生全屏启动器"
+      "zh-CN": "桌面快捷方式启动器，支持 Store 启动与单应用模式"
     },
     "description": {
       "zh-CN": "完整 GTK3 启动器，只读取桌面快捷方式。设置中可选择自动、单应用省内存或后台模式：后台保留 Launcher 窗口供 Alt+Tab 切换，重复点击运行中的启动项优先切回；单应用启动前退出 Launcher，应用关闭后返回。顶部显示电量与 Wi-Fi 纯图标。"
@@ -34,7 +34,10 @@
       "/usr/lib/python3/dist-packages/typix_launcher/status_ui.py",
       "/usr/lib/python3/dist-packages/typix_launcher/battery.py",
       "/usr/lib/tmpfiles.d/typix-launcher.conf",
-      "/usr/lib/python3/dist-packages/typix_launcher/runtime.py"
+      "/usr/lib/python3/dist-packages/typix_launcher/runtime.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/handoff.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/desktop.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/supervisor.py"
     ],
     "compatibility": {
       "arch": [
@@ -47,12 +50,14 @@
         "x11"
       ],
       "requiredFeatures": []
-    }
+    },
+    "icon": "typix-launcher"
   },
   "release": {
-    "version": "0.3.0-1",
-    "file": "dist/typix-launcher_0.3.0-1_all.deb",
-    "sha256": "d29978a232f15e63cf4a46e23c12bce0b0a34983fe1a4c4e54b8e981635b4ee8"
+    "version": "0.3.1-1",
+    "file": "dist/typix-launcher_0.3.1-1_all.deb",
+    "sha256": "56a50b2373faea7fff334715a25750631eb33b43aec98688a09c11c7ff9cafd8",
+    "sizeBytes": 22568
   },
   "screenshots": [
     {

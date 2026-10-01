@@ -12,6 +12,20 @@ MODES = ("auto", "single", "resident")
 RESIDENT_MIN_KIB = 1536 * 1024
 
 
+def external_launch(path: Path, *, mode: str, jobs, activate, launch) -> bool:
+    """No-handoff requests may focus existing jobs or start in resident mode.
+
+    A single-mode child must instead use its supervisor's nonce handoff, so an
+    unrelated Store cannot quit Launcher and restore it over the selected app.
+    """
+    if jobs.contains(path):
+        activate(path)
+        return True
+    if mode != "resident":
+        raise ValueError("请先从 Launcher 打开 Store，再启动此应用")
+    return bool(launch(path))
+
+
 def default_config_path() -> Path:
     return Path(os.environ.get("XDG_CONFIG_HOME", str(Path.home() / ".config"))) / "typix-launcher/runtime.json"
 

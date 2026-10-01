@@ -17,8 +17,9 @@ from . import desktop
 from .status_ui import StatusStrip
 from .settings import AutostartController
 from .supervisor import Supervisor
-from .runtime import AppJobs, RuntimePreferences
+from .runtime import AppJobs, RuntimePreferences, external_launch
 from .fullscreen import activate_existing
+from .handoff import queue, launch_entry
 
 APP_ID = "ai.typixdeck.launcher"
 
@@ -31,7 +32,7 @@ def css_path() -> Path:
 
 class Launcher(Gtk.Application):
     def __init__(self) -> None:
-        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.FLAGS_NONE)
+        super().__init__(application_id=APP_ID, flags=Gio.ApplicationFlags.HANDLES_COMMAND_LINE)
         self.window: Gtk.ApplicationWindow | None = None
         self.grid: Gtk.FlowBox | None = None
         self.count_label: Gtk.Label | None = None
@@ -47,6 +48,33 @@ class Launcher(Gtk.Application):
         self.app_jobs = AppJobs(self.run_resident_app)
         self.activating = False
         self.closing = False
+        self.category = "全部"
+        self.category_picker = None
+
+    def do_command_line(self, command_line):
+        args = command_line.get_arguments()[1:]
+        external = len(args) == 2 and args[0] == "--open-desktop" or len(args) == 3 and args[0] == "--open-installed"
+        if external:
+            try:
+                path = launch_entry(args[-1], args[1] if args[0] == "--open-installed" else None)
+                if self.window is None:
+                    raise ValueError("请先从 Launcher 打开 Store，再启动此应用")
+                if path.resolve() == Path("/usr/share/applications/typix-launcher.desktop"):
+                    accepted = self.launch(None, path, interactive=False)
+                else:
+                    accepted = external_launch(path, mode=self.runtime.effective(), jobs=self.app_jobs,
+                                               activate=self.activate_running,
+                                               launch=lambda target: self.launch(None, target, interactive=False))
+                if not accepted:
+                    command_line.printerr_literal("启动器当前无法接收此请求\n")
+                    return 1
+            except (OSError, ValueError, subprocess.SubprocessError) as exc:
+                command_line.printerr_literal(str(exc) + "\n")
+                return 1
+            command_line.print_literal("resident\n")
+            return 0
+        self.activate()
+        return 0
 
     def do_activate(self) -> None:
         if self.window is not None:
@@ -82,13 +110,23 @@ class Launcher(Gtk.Application):
         header.pack_start(title_box, True, True, 0)
         self.status_strip = StatusStrip()
         header.pack_start(self.status_strip, False, False, 0)
-        window.connect("notify::is-active", lambda win, _prop: self.status_strip.set_active(win.is_active()))
+        window.connect("notify::is-active", self.on_active_changed)
         settings = Gtk.Button(label="设置")
         settings.set_tooltip_text("打开启动器设置（F9）")
         settings.get_style_context().add_class("header-button")
         settings.connect("clicked", lambda _button: self.show_settings())
         header.pack_start(settings, False, False, 0)
         root.pack_start(header, False, False, 0)
+        category_row = Gtk.Box(spacing=10)
+        category_row.pack_start(Gtk.Label(label="分类", xalign=0), False, False, 0)
+        self.category_picker = Gtk.ComboBoxText()
+        self.category_picker.set_can_focus(True)
+        for name in ("全部", "工具", "网络", "影音", "游戏", "系统", "应用"):
+            self.category_picker.append(name, name)
+        self.category_picker.set_active_id(self.category)
+        self.category_picker.connect("changed", self.on_category_changed)
+        category_row.pack_start(self.category_picker, False, False, 0)
+        root.pack_start(category_row, False, False, 0)
 
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
@@ -176,13 +214,13 @@ class Launcher(Gtk.Application):
         self.reload()
         return GLib.SOURCE_REMOVE
 
-    def reload(self) -> None:
+    def reload(self, focus=True) -> None:
         if self.grid is None:
             return
         for child in self.grid.get_children():
             self.grid.remove(child)
         self.buttons.clear()
-        apps = desktop.load_apps()
+        apps = [app for app in desktop.load_apps() if self.category == "全部" or app.category == self.category]
         for app in apps:
             button = self.make_tile(app)
             self.buttons.append(button)
@@ -195,8 +233,18 @@ class Launcher(Gtk.Application):
         self.grid.show_all()
         if self.count_label is not None:
             self.count_label.set_text(f"{len(apps)} 个桌面应用")
-        if self.buttons:
+        if self.buttons and focus:
             GLib.idle_add(self.buttons[0].grab_focus)
+
+    def on_category_changed(self, combo):
+        self.category = combo.get_active_id() or "全部"
+        self.reload(focus=False)
+        combo.grab_focus()
+
+    def on_active_changed(self, window, _prop):
+        self.status_strip.set_active(window.is_active())
+        if window.is_active():
+            self.reload(focus=False)
 
     def make_tile(self, app: desktop.DesktopEntry) -> Gtk.Button:
         button = Gtk.Button()
@@ -235,10 +283,14 @@ class Launcher(Gtk.Application):
         image.set_pixel_size(56)
         return image
 
-    def launch(self, _button: Gtk.Button, path: Path) -> None:
+    def launch(self, _button: Gtk.Button, path: Path, *, interactive: bool = True) -> bool:
+        if path.resolve() == Path("/usr/share/applications/typix-launcher.desktop"):
+            self.reload()
+            self.window.present()
+            return True
         if self.app_jobs.contains(path):
             self.activate_running(path)
-            return
+            return True
         if self.runtime.effective() == "resident":
             if self.status_strip is not None:
                 self.status_strip.set_active(False)
@@ -246,21 +298,25 @@ class Launcher(Gtk.Application):
                 self.app_jobs.start(path, lambda error: GLib.idle_add(self.app_finished, error))
             except (OSError, RuntimeError) as exc:
                 self.app_finished(str(exc))
-            return
+                return False
+            return True
         if self.app_jobs.count():
-            self.show_error("请先关闭后台应用", "单应用模式将在现有应用关闭后生效，不会强制结束正在进行的工作。")
-            return
+            if interactive:
+                self.show_error("请先关闭后台应用", "单应用模式将在现有应用关闭后生效，不会强制结束正在进行的工作。")
+            return False
         try:
             desktop.atomic_request(path)
         except OSError as exc:
-            self.show_error("无法提交启动请求", str(exc))
-            return
+            if interactive:
+                self.show_error("无法提交启动请求", str(exc))
+            return False
         self.quit()
+        return True
 
     def run_resident_app(self, path: Path) -> int:
         # Only AppJobs knows which desktop entry we launched. Shared app IDs
         # cannot distinguish shortcuts with different files, URLs or arguments.
-        return Supervisor().default_run_app(path)
+        return Supervisor().default_run_app(path, single_handoff=False)
 
     def app_finished(self, error: str) -> bool:
         if self.closing:
@@ -496,6 +552,8 @@ class Launcher(Gtk.Application):
         if event.keyval == Gdk.KEY_F10 and self.power_buttons:
             self.power_buttons[0].grab_focus()
             return True
+        if self.category_picker is not None and self.category_picker.has_focus():
+            return False  # Preserve ComboBox's keyboard selection behavior.
         if not self.buttons:
             if self.power_buttons and event.keyval in {Gdk.KEY_Down, Gdk.KEY_Up, Gdk.KEY_Left, Gdk.KEY_Right}:
                 self.power_buttons[0].grab_focus()
@@ -536,6 +594,21 @@ def main() -> int:
     GLib.set_prgname(APP_ID)
     if "--supervisor" in sys.argv:
         return Supervisor().run_forever()
+    external = len(sys.argv) == 3 and sys.argv[1] == "--open-desktop" or len(sys.argv) == 4 and sys.argv[1] == "--open-installed"
+    if external:
+        try:
+            if queue(sys.argv[-1], sys.argv[2] if sys.argv[1] == "--open-installed" else None):
+                print("handoff", flush=True)
+                return 0
+            app = Launcher()
+            app.register(None)
+            if not app.get_is_remote():
+                print("请先从新版 Launcher 打开 Store", file=sys.stderr)
+                return 1
+            return app.run(sys.argv)
+        except (OSError, ValueError, subprocess.SubprocessError) as exc:
+            print(str(exc), file=sys.stderr)
+            return 1
     app = Launcher()
     return app.run([sys.argv[0]])
 

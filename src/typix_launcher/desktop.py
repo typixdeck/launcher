@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import configparser
+import hashlib
+import json
 import os
 import re
 import shlex
@@ -92,6 +94,35 @@ def category_name(categories: str) -> str:
     return "应用"
 
 
+def integrated_icon(path: Path, icon: str) -> str:
+    """Use Store's bundled logo only when the shortcut has a generic icon."""
+    if icon not in {"", "DesktopIcon", "application-x-executable", "applications-other",
+                    "accessories-text-editor", "applications-games", "audio-input-microphone",
+                    "system-software-install", "preferences-system", "system-run", "internet-chat",
+                    "web-browser", "applications-system"}:
+        return icon
+    root = Path("/usr/share/typix-store/catalog-icons")
+    try:
+        manifest = root / "manifest.json"
+        if manifest.stat().st_size > 64 * 1024:
+            return icon
+        data = json.loads(manifest.read_bytes())
+        item = data["icons"][path.resolve().stem]
+        name = item["filename"]
+        size = item["bytes"]
+        if (type(data["schema"]) is not int or data["schema"] != 1 or type(size) is not int
+                or not 0 < size <= 2 * 1024 * 1024 or not isinstance(name, str)
+                or not re.fullmatch(r"[A-Za-z0-9._-]+\.(png|svg)", name)):
+            return icon
+        logo = root / name
+        if (logo.is_file() and not logo.is_symlink() and logo.stat().st_size == size
+                and hashlib.sha256(logo.read_bytes()).hexdigest() == item["sha256"]):
+            return str(logo)
+        return icon
+    except (OSError, ValueError, KeyError, TypeError):
+        return icon
+
+
 @dataclass(frozen=True)
 class DesktopEntry:
     path: Path
@@ -139,7 +170,7 @@ def load_apps() -> list[DesktopEntry]:
                     name=name,
                     comment=localized(section, "Comment") or category,
                     category=category,
-                    icon=section.get("Icon", "application-x-executable").strip(),
+                    icon=integrated_icon(path, section.get("Icon", "application-x-executable").strip()),
                     priority=priority,
                 )
             )
@@ -153,7 +184,7 @@ def expand_exec(path: Path) -> tuple[list[str], Path | None, bool]:
         raise ValueError(f"无法读取启动项：{path}")
     _, section = loaded
     name = localized(section, "Name")
-    icon = section.get("Icon", "").strip()
+    icon = integrated_icon(path, section.get("Icon", "").strip())
     command: list[str] = []
     for token in shlex.split(section.get("Exec", "")):
         if token in {"%f", "%F", "%u", "%U", "%d", "%D", "%n", "%N", "%v", "%m"}:
