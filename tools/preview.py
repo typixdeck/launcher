@@ -64,11 +64,12 @@ class PreviewFanController:
     def state(self):
         return self.current
 
-    def apply(self, mode, percent=50):
+    def apply(self, mode, percent=50, *, curve=None):
         actual = percent if mode == "manual" else 35
         self.current = FanState(available=True, mode=mode, requested_percent=percent,
                                 percent=actual, rpm=actual * 50, temperature=43.5,
-                                message="演示设置，未修改设备")
+                                message="演示设置，未修改设备",
+                                curve=tuple(tuple(point) for point in curve) if curve else self.current.curve)
         return self.current
 
 

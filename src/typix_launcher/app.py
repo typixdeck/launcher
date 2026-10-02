@@ -52,7 +52,8 @@ class Launcher(Gtk.Application):
         self.activating = False
         self.closing = False
         self.category = "全部"
-        self.category_picker = None
+        self.category_tabs = {}
+        self.updating_categories = False
         self.fan = FanController()
         self.settings_dialog = None
         self.fan_panel = None
@@ -123,15 +124,17 @@ class Launcher(Gtk.Application):
         settings.connect("clicked", lambda _button: self.show_settings())
         header.pack_start(settings, False, False, 0)
         root.pack_start(header, False, False, 0)
-        category_row = Gtk.Box(spacing=10)
-        category_row.pack_start(Gtk.Label(label="分类", xalign=0), False, False, 0)
-        self.category_picker = Gtk.ComboBoxText()
-        self.category_picker.set_can_focus(True)
+        category_row = Gtk.Box(spacing=6)
         for name in ("全部", "工具", "网络", "影音", "游戏", "系统", "应用"):
-            self.category_picker.append(name, name)
-        self.category_picker.set_active_id(self.category)
-        self.category_picker.connect("changed", self.on_category_changed)
-        category_row.pack_start(self.category_picker, False, False, 0)
+            button = Gtk.ToggleButton(label=name)
+            button.get_style_context().add_class('category-tab')
+            button.set_can_focus(True)
+            button.set_tooltip_text('显示全部桌面应用' if name == '全部' else f'显示{name}应用')
+            button.connect('clicked', self.on_category_changed, name)
+            button.show_all()
+            button.set_no_show_all(True)
+            self.category_tabs[name] = button
+            category_row.pack_start(button, False, False, 0)
         root.pack_start(category_row, False, False, 0)
 
         scroll = Gtk.ScrolledWindow()
@@ -230,7 +233,18 @@ class Launcher(Gtk.Application):
         for child in self.grid.get_children():
             self.grid.remove(child)
         self.buttons.clear()
-        apps = [app for app in desktop.load_apps() if self.category == "全部" or app.category == self.category]
+        all_apps = desktop.load_apps()
+        available = {'全部', *(app.category for app in all_apps)}
+        if self.category not in available:
+            self.category = '全部'
+        self.updating_categories = True
+        try:
+            for name, button in self.category_tabs.items():
+                button.set_visible(name in available)
+                button.set_active(name == self.category)
+        finally:
+            self.updating_categories = False
+        apps = [app for app in all_apps if self.category == "全部" or app.category == self.category]
         for app in apps:
             button = self.make_tile(app)
             self.buttons.append(button)
@@ -246,10 +260,12 @@ class Launcher(Gtk.Application):
         if self.buttons and focus:
             GLib.idle_add(self.buttons[0].grab_focus)
 
-    def on_category_changed(self, combo):
-        self.category = combo.get_active_id() or "全部"
+    def on_category_changed(self, button, name):
+        if self.updating_categories:
+            return
+        self.category = name
         self.reload(focus=False)
-        combo.grab_focus()
+        button.grab_focus()
 
     def on_active_changed(self, window, _prop):
         self.status_strip.set_active(window.is_active())
@@ -381,16 +397,19 @@ class Launcher(Gtk.Application):
             self.settings_dialog.present()
             return
         dialog = Gtk.Dialog(title="启动器设置", transient_for=self.window, modal=True)
+        dialog.get_style_context().add_class('launcher-settings')
         self.settings_dialog = dialog
         dialog.set_default_size(600, 560)
         dialog.add_button("关闭", Gtk.ResponseType.CLOSE)
         content_area = dialog.get_content_area()
+        notebook = Gtk.Notebook()
+        content_area.pack_start(notebook, True, True, 0)
         scroll = Gtk.ScrolledWindow()
         scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
         scroll.set_kinetic_scrolling(True)
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         scroll.add(body)
-        content_area.pack_start(scroll, True, True, 0)
+        notebook.append_page(scroll, Gtk.Label(label='常规'))
         if dialog.get_header_bar() is None:
             dialog.set_titlebar(Gtk.HeaderBar())
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -454,7 +473,10 @@ class Launcher(Gtk.Application):
         mode_box.pack_start(explanation, False, False, 0)
         body.pack_start(mode_box, False, False, 0)
         self.fan_panel = panel = FanPanel(self.fan)
-        body.pack_start(panel, False, False, 0)
+        fan_scroll = Gtk.ScrolledWindow()
+        fan_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        fan_scroll.add(panel)
+        notebook.append_page(fan_scroll, Gtk.Label(label='风扇'))
         try:
             dialog.show_all()
             panel.start()
@@ -580,8 +602,20 @@ class Launcher(Gtk.Application):
         if event.keyval == Gdk.KEY_F10 and self.power_buttons:
             self.power_buttons[0].grab_focus()
             return True
-        if self.category_picker is not None and self.category_picker.has_focus():
-            return False  # Preserve ComboBox's keyboard selection behavior.
+        tabs = [button for button in self.category_tabs.values() if button.get_visible()]
+        for tab_index, tab in enumerate(tabs):
+            if not tab.has_focus():
+                continue
+            if event.keyval in {Gdk.KEY_Left, Gdk.KEY_Right}:
+                delta = -1 if event.keyval == Gdk.KEY_Left else 1
+                tabs[max(0, min(len(tabs) - 1, tab_index + delta))].clicked()
+            elif event.keyval in {Gdk.KEY_Return, Gdk.KEY_KP_Enter, Gdk.KEY_space}:
+                tab.clicked()
+            elif event.keyval == Gdk.KEY_Down and self.buttons:
+                self.focus(0)
+            else:
+                return False
+            return True
         if not self.buttons:
             if self.power_buttons and event.keyval in {Gdk.KEY_Down, Gdk.KEY_Up, Gdk.KEY_Left, Gdk.KEY_Right}:
                 self.power_buttons[0].grab_focus()

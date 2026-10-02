@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-VERSION=${VERSION:-0.3.2-1}
+VERSION=${VERSION:-0.3.3-1}
 STAGE="$ROOT/build/package"
 DIST="$ROOT/dist"
 rm -rf "$STAGE"
@@ -13,7 +13,7 @@ Architecture: all
 Maintainer: TypixDeck <dev@typixnode.com>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-3.0, xdg-user-dirs, pkexec, polkitd, systemd
+Depends: python3 (>= 3.11), python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, xdg-user-dirs, pkexec, polkitd, systemd
 X-Typix-Compatible-OS: raspios-bookworm,raspios-trixie
 Recommends: wlopm, network-manager
 Description: TypixDeck full-screen launcher and app supervisor

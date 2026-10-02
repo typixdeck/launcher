@@ -13,6 +13,8 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'src'))
+
 if sys.platform == "darwin":
     os.environ.setdefault("GDK_BACKEND", "x11")
 import gi
@@ -37,8 +39,8 @@ def main():
     app.fan = preview.PreviewFanController()
     app.set_application_id('ai.typixdeck.launcher.LayoutCheck')
     app.register(None)
-    rows = [('Copilot', '固件', 'applications-system'), ('Store', '应用', 'system-software-install'),
-            ('Reader', '阅读', 'accessories-text-editor'), ('MyAI', '工具', 'face-smile'),
+    rows = [('Copilot', '系统', 'applications-system'), ('Store', '系统', 'system-software-install'),
+            ('Reader', '工具', 'accessories-text-editor'), ('MyAI', '工具', 'face-smile'),
             ('微信', '网络', 'internet-chat'), ('Pixel Relay', '游戏', 'applications-games')]
     fixtures = [DesktopEntry(Path('/nonexistent') / f'{i}.desktop', name, '', category, icon, i)
                 for i, (name, category, icon) in enumerate(rows)]
@@ -68,6 +70,30 @@ def main():
         minimum, _ = root.get_preferred_width()
         assert minimum <= 800, f'header too wide: {minimum}'
         assert all(isinstance(item, Gtk.Image) and not item.get_can_focus() for item in app.status_strip.items)
+        with patch('typix_launcher.app.desktop.load_apps', return_value=fixtures):
+            assert {name for name, button in app.category_tabs.items() if button.get_visible()} == {'全部', '工具', '网络', '游戏', '系统'}
+            app.category_tabs['工具'].clicked()
+            assert app.category == '工具' and len(app.buttons) == 2
+            assert app.category_tabs['工具'].get_active()
+            assert sum(button.get_active() for button in app.category_tabs.values()) == 1
+            with patch.object(app.category_tabs['工具'], 'has_focus', return_value=True):
+                assert app.on_key_press(app.window, SimpleNamespace(keyval=Gdk.KEY_Right))
+            assert app.category == '网络' and len(app.buttons) == 1
+            app.category_tabs['全部'].clicked()
+            assert len(app.buttons) == len(fixtures)
+            app.category_tabs['工具'].clicked()
+            with patch('typix_launcher.app.desktop.load_apps', return_value=[]):
+                app.reload(focus=False)
+                assert app.category == '全部'
+                assert sum(button.get_visible() for button in app.category_tabs.values()) == 1
+            app.reload(focus=False)
+        # Leave fixture focus on a tile before checking header key propagation.
+        app.buttons[0].grab_focus()
+        end = time.monotonic() + .3
+        while time.monotonic() < end:
+            while GLib.MainContext.default().pending():
+                GLib.MainContext.default().iteration(False)
+            time.sleep(.01)
         with patch.object(app, 'focused_index', return_value=None):
             assert app.on_key_press(app.window, SimpleNamespace(keyval=Gdk.KEY_Return)) is False
         pixbuf = offscreen.get_pixbuf()

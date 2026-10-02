@@ -12,7 +12,7 @@ import syslog
 import time
 
 from .fan import (CONFIG, RUNTIME, SERVICE, STATUS, FanError, discover,
-                  read_root_json, secure_directory, validate_config, validate_status)
+                  read_root_json, secure_directory, validate_config, validate_status, status_matches_config)
 from .fan_service import atomic_root_json, failsafe, root_lock
 
 
@@ -63,6 +63,13 @@ def rollback(old: dict | None, active: bool, enabled: bool, changed: bool, prior
 
 
 def arguments(argv: list[str]) -> dict:
+    if len(argv) in (3, 4) and argv[-2] == '--curve':
+        encoded = argv[-1]
+        if not re.fullmatch(r'[0-9]{2}:[0-9]{2,3}(?:,[0-9]{2}:[0-9]{2,3}){3}', encoded):
+            raise FanError('无效的温控曲线参数')
+        config = arguments(argv[:-2])
+        return validate_config({**config, 'version': 2,
+                                'curve': [[int(item) for item in point.split(':')] for point in encoded.split(',')]})
     if argv == ['auto']:
         return {'version': 1, 'mode': 'auto', 'percent': 50}
     if len(argv) == 2 and argv[0] == 'manual' and re.fullmatch(r'[0-9]{2,3}', argv[1]):
@@ -106,7 +113,7 @@ def apply_config(config: dict) -> None:
         while time.monotonic() < deadline:
             try:
                 status = validate_status(read_root_json(STATUS))
-                if (status.get('mode') == config['mode'] and status.get('requested_percent') == config['percent']
+                if (status_matches_config(status, config)
                         and 0 <= time.monotonic() - status.get('updated', -999) <= 5):
                     syslog.syslog(syslog.LOG_NOTICE, 'fan authorized setting: mode=%s percent=%d' % (config['mode'], config['percent']))
                     return

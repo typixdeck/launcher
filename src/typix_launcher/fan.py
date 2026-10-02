@@ -21,6 +21,7 @@ RUNTIME = Path('/run/typix-launcher-fan')
 STATUS = RUNTIME / 'status.json'
 HELPER = '/usr/libexec/typix-launcher-fan'
 SERVICE = 'typix-launcher-fan.service'
+DEFAULT_CURVE = ((45, 30), (55, 45), (65, 65), (75, 100))
 
 
 class FanError(RuntimeError):
@@ -37,6 +38,7 @@ class FanState:
     temperature: float | None = None
     error: str = ''
     message: str = ''
+    curve: tuple[tuple[int, int], ...] = DEFAULT_CURVE
 
 
 @dataclass(frozen=True)
@@ -178,19 +180,59 @@ def read_root_json(path: Path) -> dict:
         os.close(descriptor)
 
 
+def validate_curve(value) -> tuple[tuple[int, int], ...]:
+    if not isinstance(value, (list, tuple)) or len(value) != 4:
+        raise FanError('温控曲线需要四个温度点')
+    points = []
+    for point in value:
+        if (not isinstance(point, (list, tuple)) or len(point) != 2
+                or any(type(item) is not int for item in point)
+                or not 30 <= point[0] <= 80 or not 30 <= point[1] <= 100):
+            raise FanError('温度范围 30–80°C，输出范围 30–100%')
+        if points and (point[0] <= points[-1][0] or point[1] < points[-1][1]):
+            raise FanError('温度必须从左到右递增，输出不能随温度升高而降低')
+        points.append(tuple(point))
+    if points[-1][1] != 100:
+        raise FanError('最高温度点须设为 100%')
+    return tuple(points)
+
+
+def config_curve(value: dict) -> tuple[tuple[int, int], ...]:
+    return validate_curve(value['curve']) if value['version'] == 2 else DEFAULT_CURVE
+
+
+def curve_percent(points, temperature: float) -> int:
+    points = validate_curve(points)
+    if temperature <= points[0][0]:
+        return points[0][1]
+    for (left_t, left_p), (right_t, right_p) in zip(points, points[1:]):
+        if temperature <= right_t:
+            return round(left_p + (right_p - left_p) * (temperature - left_t) / (right_t - left_t))
+    return points[-1][1]
+
+
 def validate_config(value: dict) -> dict:
-    if set(value) != {'version', 'mode', 'percent'} or type(value['version']) is not int or value['version'] != 1:
+    version = value.get('version')
+    required = {'version', 'mode', 'percent'} | ({'curve'} if version == 2 else set())
+    if set(value) != required or type(version) is not int or version not in (1, 2):
         raise FanError('风扇配置版本或字段错误')
     if type(value['mode']) is not str or value['mode'] not in {'auto', 'manual'} or type(value['percent']) is not int or not 30 <= value['percent'] <= 100:
         raise FanError('手动风速仅支持 30–100%')
+    if version == 2:
+        validate_curve(value['curve'])
     return value
 
 
 def validate_status(value: dict) -> dict:
     required = {'version', 'mode', 'requested_percent', 'percent', 'rpm', 'temperature', 'updated', 'error', 'message'}
+    if value.get('version') == 2:
+        required.add('curve')
     if set(value) != required:
         raise FanError('风扇服务状态字段错误')
-    validate_config({'version': value['version'], 'mode': value['mode'], 'percent': value['requested_percent']})
+    config = {'version': value['version'], 'mode': value['mode'], 'percent': value['requested_percent']}
+    if value['version'] == 2:
+        config['curve'] = value['curve']
+    validate_config(config)
     for name, low, high in (('percent', 0, 100), ('rpm', 0, 100000)):
         if value[name] is not None and (type(value[name]) is not int or not low <= value[name] <= high):
             raise FanError('风扇服务读数无效')
@@ -202,6 +244,12 @@ def validate_status(value: dict) -> dict:
     if any(type(value[name]) is not str or len(value[name]) > 512 for name in ('error', 'message')):
         raise FanError('风扇服务说明无效')
     return value
+
+
+def status_matches_config(status: dict, config: dict) -> bool:
+    return (status['version'] == config['version'] and status['mode'] == config['mode']
+            and status['requested_percent'] == config['percent']
+            and config_curve(status) == config_curve(config))
 
 
 class FanController:
@@ -226,11 +274,12 @@ class FanController:
         base = FanState(True, 'off', percent=percent, rpm=rpm, temperature=temperature, message='尚未启用风扇控制')
         try:
             config = validate_config(read_root_json(CONFIG))
+            base = replace(base, requested_percent=config['percent'], curve=config_curve(config))
             runtime = validate_status(read_root_json(STATUS))
             age = time.monotonic() - runtime['updated']
             if type(runtime['updated']) not in {int, float} or not 0 <= age <= 8 or runtime.get('mode') not in {'auto', 'manual'}:
                 return replace(base, message='风扇服务未运行，请重新应用设置')
-            if runtime.get('mode') != config['mode'] or runtime.get('requested_percent') != config['percent']:
+            if not status_matches_config(runtime, config):
                 return replace(base, message='正在应用风扇设置')
             return replace(base, mode=config['mode'], requested_percent=config['percent'], error=runtime.get('error', ''), message=runtime.get('message', ''))
         except FileNotFoundError:
@@ -238,7 +287,7 @@ class FanController:
         except (OSError, KeyError, TypeError, ValueError, FanError):
             return replace(base, error='configuration', message='风扇配置或服务状态无法读取')
 
-    def apply(self, mode: str, percent: int = 50) -> FanState:
+    def apply(self, mode: str, percent: int = 50, *, curve=None) -> FanState:
         try:
             validate_config({'version': 1, 'mode': mode, 'percent': percent})
             current = self.state()
@@ -247,6 +296,9 @@ class FanController:
             command = ['/usr/bin/pkexec', HELPER, mode]
             if mode == 'manual':
                 command.append(str(percent))
+            if curve is not None:
+                points = validate_curve(curve)
+                command.extend(['--curve', ','.join(f'{temperature}:{duty}' for temperature, duty in points)])
             # Do not impose a timeout on an interactive Polkit authentication.
             result = self.runner(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=False)
             if result.returncode:

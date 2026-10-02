@@ -13,7 +13,8 @@ import time
 import uuid
 
 from .fan import (CONFIG, RUNTIME, STATUS, SYS, FanDevice, FanError, discover,
-                  read_root_json, readings, secure_directory, validate_config, verify_device)
+                  read_root_json, readings, secure_directory, validate_config, verify_device,
+                  config_curve, curve_percent)
 
 
 def atomic_root_json(path: Path, value: dict) -> None:
@@ -86,6 +87,8 @@ class FanPolicy:
     def __init__(self) -> None:
         self.level = 0
         self.zero_count = 0
+        self.curve_signature = None
+        self.held_temperature = None
 
     def choose(self, config: dict, temperature: float | None, rpm: int | None) -> tuple[int, str]:
         validate_config(config)
@@ -104,7 +107,19 @@ class FanPolicy:
         if temperature >= 80:
             return 100, 'CPU 温度达到 80°C，已保持全速保护'
         if config['mode'] == 'manual':
+            self.curve_signature = None
             return config['percent'], ''
+        if config['version'] == 2:
+            points = config_curve(config)
+            if points != self.curve_signature or self.held_temperature is None:
+                self.curve_signature = points
+                self.held_temperature = temperature
+            elif temperature >= self.held_temperature:
+                self.held_temperature = temperature
+            elif temperature < self.held_temperature - 2:
+                self.held_temperature = temperature + 2
+            return curve_percent(points, self.held_temperature), ''
+        self.curve_signature = None
         thresholds = (55, 65, 75)
         target = sum(temperature >= item for item in thresholds)
         if target >= self.level:
@@ -169,9 +184,12 @@ def run() -> int:
             _, rpm, temperature = readings(device)
             percent, message = policy.choose(config, temperature, rpm)
             actual = write_percent(device, percent)
-            atomic_root_json(STATUS, {'version': 1, 'mode': config['mode'], 'requested_percent': config['percent'],
+            status = {'version': config['version'], 'mode': config['mode'], 'requested_percent': config['percent'],
                                      'percent': actual, 'rpm': rpm, 'temperature': temperature,
-                                     'updated': time.monotonic(), 'error': 'protection' if message else '', 'message': message})
+                                     'updated': time.monotonic(), 'error': 'protection' if message else '', 'message': message}
+            if config['version'] == 2:
+                status['curve'] = config['curve']
+            atomic_root_json(STATUS, status)
             if message != previous_message:
                 syslog.syslog(syslog.LOG_WARNING if message else syslog.LOG_INFO, message or 'fan normal control restored')
                 previous_message = message

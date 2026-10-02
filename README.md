@@ -9,6 +9,10 @@
 
 <!-- app-screenshots:start -->
 
+![0.3.3 横向分类标签](docs/screenshots/categories.png)
+
+0.3.3 首页分类标签：点击切换，仅显示有应用的分类。CM4 GTK 800×600 隔离演示，不含真实设备应用清单。
+
 ![0.2.2 电量与 Wi-Fi 状态栏](docs/screenshots/status.png)
 
 0.2.2 状态栏：CM4 原生 GTK 800×600 渲染，使用演示电量、信号和应用条目，不含设备安装清单。
@@ -77,9 +81,13 @@ sh install.sh --start
 
 配置：`$XDG_CONFIG_HOME/typix-launcher/runtime.json`（默认 `~/.config/typix-launcher/runtime.json`），写入失败保留原设置。源码预览使用内存中的演示设置，不写这个文件。
 
-## 风扇自动 / 手动调速（0.3.2）
+## 风扇温控曲线 / 手动调速（0.3.3）
 
-设置（F9）中选择自动温控或手动 30–100%，点击“应用”后通过系统管理员认证。显示 CPU 温度、实际 PWM 和 RPM；高温、传感器异常或持续没有转速反馈时回退全速。配置和独立温控服务在关闭 Launcher 后继续生效，首次安装不自动启用。
+设置（F9）→ **风扇**：选择“自动 · 温控曲线”，编辑四组温度 / 百分比，曲线图即时预览；选择“手动 · 固定转速”，拖动滑块或直接输入 30–100%。点击“应用”后通过系统管理员认证并保存，显示 CPU 温度、实际 PWM 和 RPM。80°C 及以上、传感器异常或持续没有转速反馈时请求全速。配置和独立温控服务在关闭 Launcher 后继续生效，首次安装不自动启用。
+
+![可编辑风扇温控曲线](docs/screenshots/fan-curve.png)
+
+0.3.3 风扇设置，在 CM4 GTK 中渲染的隔离演示；图中为演示读数。
 
 适用于已启用驱动的 TypixDeck CN5 / EMC2301；运行时校验控制器，不固定 I²C 或 hwmon 编号。未检测到驱动或已有内核温控冲突时禁用调速。首次驱动配置、控制边界和本轮真机验收限制见 [风扇控制](docs/FAN-CONTROL.md)。预览使用演示风扇，不需要 root，不读写设备。
 
@@ -150,7 +158,7 @@ systemctl --user start typix-launcher.service
 
 只扫描系统桌面目录的 `*.desktop` 快捷方式。通过 `xdg-user-dir DESKTOP` 获取路径（兼容中文“桌面”或自定义桌面位置），命令不可用时回退到 `~/Desktop`。
 
-不扫描用户或系统的 `applications` 目录。Store 为已安装的目录应用维护桌面快捷方式，Launcher 仍只读取桌面入口；普通 Linux 应用也可自行添加标准 `.desktop`，无需注册 Store。删除桌面快捷方式只会移除 Launcher 入口，不会卸载软件。首页分类按 FreeDesktop 的工具、网络、影音、游戏、系统字段显示，可用 Tab 到达分类选择框，方向键切换分类。
+不扫描用户或系统的 `applications` 目录。Store 为已安装的目录应用维护桌面快捷方式，Launcher 仍只读取桌面入口；普通 Linux 应用也可自行添加标准 `.desktop`，无需注册 Store。删除桌面快捷方式只会移除 Launcher 入口，不会卸载软件。首页分类按 FreeDesktop 的工具、网络、影音、游戏、系统字段显示。0.3.3 改为横向标签，当前分类高亮，隐藏没有应用的分类；可用 Tab 到达标签，左右键切换，向下进入应用卡片。所选分类清空后自动返回“全部”。
 
 Store 使用固定 `--open-installed <package> <desktopFile>` 启动接口。Launcher 只检查该包的安装状态、root 管理的 `/usr/share/applications/<desktopFile>` 及其 dpkg 文件归属，不收集全系统安装清单。该接口允许启动被用户从首页隐藏的已安装应用，不扩展首页扫描范围。后台模式继续使用 AppJobs、重复启动抑制和同一全屏策略；单应用模式使用私有 nonce 请求，在 Store 退出后由现有 Supervisor 启动下一应用，中间不恢复首页。无效、过期或已变更的交接请求不会重放。
 
@@ -169,13 +177,13 @@ Store 使用固定 `--open-installed <package> <desktopFile>` 启动接口。Lau
 产物：
 
 ```text
-dist/typix-launcher_0.3.2-1_all.deb
+dist/typix-launcher_0.3.3-1_all.deb
 ```
 
 运行依赖：
 
 ```text
-python3, python3-gi, gir1.2-gtk-3.0, xdg-user-dirs, pkexec, polkitd, systemd
+python3, python3-gi, python3-gi-cairo, gir1.2-gtk-3.0, xdg-user-dirs, pkexec, polkitd, systemd
 ```
 
 推荐安装 `wlopm` 以支持息屏/唤醒。

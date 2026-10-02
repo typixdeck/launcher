@@ -112,3 +112,140 @@ scrollbar slider {
 .status-icon {
   color: #c4edff;
 }
+
+.category-tab {
+  min-width: 48px;
+  min-height: 34px;
+  padding: 2px 12px;
+  background: transparent;
+  background-image: none;
+  border: 1px solid transparent;
+  border-bottom: 2px solid transparent;
+  border-radius: 6px;
+  color: #96afc0;
+  font-size: 15px;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+.category-tab:hover {
+  background: #102331;
+  color: #eef8ff;
+}
+
+.category-tab:checked {
+  background: #123142;
+  border-bottom-color: #43d5ff;
+  color: #eef8ff;
+}
+
+.category-tab:focus {
+  border-color: #43d5ff;
+  color: #ffffff;
+}
+
+/* Explicit popup colors avoid inheriting dark text from the desktop theme. */
+combobox button,
+combobox cellview,
+combobox arrow,
+menu,
+menuitem,
+popover,
+popover contents,
+popover modelbutton {
+  background-color: #102331;
+  background-image: none;
+  color: #eef8ff;
+  text-shadow: none;
+}
+
+menuitem label,
+popover label,
+combobox label {
+  color: #eef8ff;
+  text-shadow: none;
+}
+
+menuitem:hover,
+menuitem:selected,
+popover modelbutton:hover,
+combobox button:hover {
+  background-color: #24536a;
+  background-image: none;
+  color: #ffffff;
+}
+
+.launcher-settings notebook,
+.launcher-settings notebook header,
+.launcher-settings notebook stack,
+.launcher-settings viewport,
+.fan-panel {
+  background: #071018;
+  color: #eef8ff;
+}
+
+.launcher-settings notebook tab {
+  min-height: 32px;
+  min-width: 100px;
+  color: #b9cedc;
+  border-bottom: 2px solid transparent;
+}
+
+.launcher-settings notebook tab:checked {
+  background: #102b3a;
+  border-bottom-color: #43d5ff;
+  color: #ffffff;
+}
+
+.launcher-settings button,
+.fan-panel button,
+.fan-panel spinbutton,
+.fan-panel spinbutton entry {
+  min-height: 30px;
+  background: #102331;
+  color: #eef8ff;
+  border-color: #35576a;
+  border-radius: 5px;
+  text-shadow: none;
+  box-shadow: none;
+}
+
+.fan-panel button:hover,
+.fan-panel button:focus,
+.launcher-settings button:focus,
+.fan-panel spinbutton:focus {
+  background: #17384a;
+  border-color: #43d5ff;
+  color: #ffffff;
+}
+
+.fan-panel scale {
+  min-height: 36px;
+}
+
+.fan-panel scale trough {
+  min-height: 8px;
+  background: #35576a;
+  border-radius: 4px;
+}
+
+.fan-panel scale highlight {
+  background: #43d5ff;
+  border-radius: 4px;
+}
+
+.fan-panel scale slider {
+  min-height: 20px;
+  min-width: 20px;
+  background: #eef8ff;
+  border: 2px solid #43d5ff;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.fan-panel button:disabled,
+.fan-panel spinbutton:disabled,
+combobox:disabled button {
+  color: #8da6b8;
+  border-color: #274354;
+}
