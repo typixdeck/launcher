@@ -3,3 +3,13 @@ set -eu
 if [ "$1" = configure ] && command -v systemd-tmpfiles >/dev/null 2>&1; then
     systemd-tmpfiles --create /usr/lib/tmpfiles.d/typix-launcher.conf
 fi
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+    case "$1" in
+        configure|abort-upgrade)
+            systemctl daemon-reload || true
+            # Preserve the former active state, also on aborted upgrades.
+            # First installation never starts/enables a fan service.
+            /usr/bin/python3 -I -m typix_launcher.fan_maintenance post-configure || true
+            ;;
+    esac
+fi

@@ -6,14 +6,14 @@
     "id": "ai.typixdeck.launcher",
     "package": "typix-launcher",
     "name": {
-      "zh-CN": "Typix 启动器",
-      "en": "Typix Launcher"
+      "zh-CN": "启动器",
+      "en": "Launcher"
     },
     "summary": {
-      "zh-CN": "桌面快捷方式启动器，支持 Store 启动与单应用模式"
+      "zh-CN": "桌面快捷方式去重、应用运行模式和风扇自动/手动调速"
     },
     "description": {
-      "zh-CN": "完整 GTK3 启动器，只读取桌面快捷方式。设置中可选择自动、单应用省内存或后台模式：后台保留 Launcher 窗口供 Alt+Tab 切换，重复点击运行中的启动项优先切回；单应用启动前退出 Launcher，应用关闭后返回。顶部显示电量与 Wi-Fi 纯图标。"
+      "zh-CN": "原生 GTK3 启动器，只读取桌面快捷方式，合并相同启动行为的副本，保留不同文件和 URL 参数。支持自动、单应用省内存或后台运行模式。设置内提供 CN5 EMC2301 自动温控、手动调速和实时 PWM/RPM/温度，保留过热和异常全速保护；缺少驱动时禁用调速。"
     },
     "categories": [
       "System"
@@ -37,7 +37,19 @@
       "/usr/lib/python3/dist-packages/typix_launcher/runtime.py",
       "/usr/lib/python3/dist-packages/typix_launcher/handoff.py",
       "/usr/lib/python3/dist-packages/typix_launcher/desktop.py",
-      "/usr/lib/python3/dist-packages/typix_launcher/supervisor.py"
+      "/usr/lib/python3/dist-packages/typix_launcher/supervisor.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/fan.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/fan_helper.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/fan_service.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/fan_maintenance.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/fan_panel.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/fan_labels.py",
+      "/usr/lib/python3/dist-packages/typix_launcher/names.py",
+      "/usr/libexec/typix-launcher-fan",
+      "/usr/share/polkit-1/actions/ai.typixdeck.launcher.fan.policy",
+      "/usr/lib/systemd/system/typix-launcher-fan.service",
+      "/usr/share/typix-launcher/typixdeck-cm4-emc2301.dtbo",
+      "/usr/share/doc/typix-launcher/FAN-CONTROL.md"
     ],
     "compatibility": {
       "arch": [
@@ -54,10 +66,10 @@
     "icon": "ai.typixdeck.launcher"
   },
   "release": {
-    "version": "0.3.1-1",
-    "file": "dist/typix-launcher_0.3.1-1_all.deb",
-    "sha256": "56a50b2373faea7fff334715a25750631eb33b43aec98688a09c11c7ff9cafd8",
-    "sizeBytes": 22568
+    "version": "0.3.2-1",
+    "file": "dist/typix-launcher_0.3.2-1_all.deb",
+    "sha256": "33051f53f17faf804d302d41f866fdb9f9acda57b2deda228b6cc250acd41394",
+    "sizeBytes": 35404
   },
   "screenshots": [
     {

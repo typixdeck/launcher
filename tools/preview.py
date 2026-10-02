@@ -2,10 +2,13 @@
 """Preview checkout code with fixture tiles and no device/session mutations."""
 from pathlib import Path
 import argparse
+import os
 import sys
 import time
 from unittest.mock import patch
 
+if sys.platform == "darwin":
+    os.environ.setdefault("GDK_BACKEND", "x11")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from typix_launcher import app as module
 from typix_launcher.app import Gdk, Gio, GLib, Gtk, Launcher
@@ -13,6 +16,7 @@ from typix_launcher.desktop import DesktopEntry
 from typix_launcher.settings import AutostartState
 from typix_launcher.status import battery_indicator, wifi_indicator
 from typix_launcher.status_ui import StatusStrip
+from typix_launcher.fan import FanState
 
 
 class PreviewStatus(StatusStrip):
@@ -50,6 +54,24 @@ class PreviewRuntime:
         self.mode = mode
 
 
+class PreviewFanController:
+    """In-memory fixture, never probes sysfs, writes config or invokes pkexec."""
+    is_preview = True
+    def __init__(self):
+        self.current = FanState(available=True, mode="auto", requested_percent=50,
+                                percent=35, rpm=1750, temperature=43.5)
+
+    def state(self):
+        return self.current
+
+    def apply(self, mode, percent=50):
+        actual = percent if mode == "manual" else 35
+        self.current = FanState(available=True, mode=mode, requested_percent=percent,
+                                percent=actual, rpm=actual * 50, temperature=43.5,
+                                message="演示设置，未修改设备")
+        return self.current
+
+
 class Preview(Launcher):
     def __init__(self):
         super().__init__()
@@ -57,15 +79,16 @@ class Preview(Launcher):
         self.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
         self.autostart = PreviewSettings()
         self.runtime = PreviewRuntime()
+        self.fan = PreviewFanController()
 
     def watch_desktop_dirs(self):
         pass
 
-    def reload(self):
-        super().reload()
+    def reload(self, focus=True):
+        super().reload(focus=focus)
         self.count_label.set_text("源码预览 · 演示数据 · Esc 退出")
 
-    def launch(self, _button, _path):
+    def launch(self, _button, _path, *, interactive=True):
         self.notice("应用入口预览", "这里使用演示快捷方式。")
 
     def notice(self, title, text):
@@ -89,11 +112,18 @@ class Preview(Launcher):
         return super().on_key_press(window, event)
 
 
+def require_display():
+    if not Gtk.init_check()[0]:
+        print("SKIP: no GTK display; use a graphical session or Xvfb with GDK_BACKEND=x11", file=sys.stderr)
+        raise SystemExit(77)
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--screenshot", type=Path, help="Offscreen PNG; use GDK_BACKEND=x11")
     parser.add_argument("--smoke-seconds", type=int, default=0)
     args = parser.parse_args()
+    require_display()
     rows = [("Copilot", "固件", "applications-system"), ("Store", "应用", "system-software-install"),
             ("Reader", "阅读", "accessories-text-editor"), ("时钟", "工具", "preferences-system-time"),
             ("MIDI", "应用", "audio-x-generic"), ("设置", "工具", "preferences-system")]

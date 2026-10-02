@@ -1,7 +1,7 @@
 #!/bin/sh
 set -eu
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
-VERSION=${VERSION:-0.3.1-1}
+VERSION=${VERSION:-0.3.2-1}
 STAGE="$ROOT/build/package"
 DIST="$ROOT/dist"
 rm -rf "$STAGE"
@@ -13,7 +13,7 @@ Architecture: all
 Maintainer: TypixDeck <dev@typixnode.com>
 Section: x11
 Priority: optional
-Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-3.0, xdg-user-dirs
+Depends: python3 (>= 3.11), python3-gi, gir1.2-gtk-3.0, xdg-user-dirs, pkexec, polkitd, systemd
 X-Typix-Compatible-OS: raspios-bookworm,raspios-trixie
 Recommends: wlopm, network-manager
 Description: TypixDeck full-screen launcher and app supervisor
@@ -34,5 +34,13 @@ install -m 644 "$ROOT/config/systemd/typix-launcher.service" "$STAGE/usr/lib/sys
 install -m 644 "$ROOT/packaging/debian/typix-launcher.desktop" "$STAGE/usr/share/applications/typix-launcher.desktop"
 install -d "$STAGE/usr/lib/tmpfiles.d"
 install -m 644 "$ROOT/packaging/debian/typix-launcher.tmpfiles" "$STAGE/usr/lib/tmpfiles.d/typix-launcher.conf"
+install -d "$STAGE/usr/libexec" "$STAGE/usr/share/polkit-1/actions" "$STAGE/usr/lib/systemd/system"
+install -m 755 "$ROOT/packaging/debian/typix-launcher-fan" "$STAGE/usr/libexec/typix-launcher-fan"
+install -m 644 "$ROOT/packaging/debian/ai.typixdeck.launcher.fan.policy" "$STAGE/usr/share/polkit-1/actions/ai.typixdeck.launcher.fan.policy"
+install -m 644 "$ROOT/packaging/debian/typix-launcher-fan.service" "$STAGE/usr/lib/systemd/system/typix-launcher-fan.service"
+install -m 644 "$ROOT/docs/FAN-CONTROL.md" "$STAGE/usr/share/doc/typix-launcher/FAN-CONTROL.md"
+install -m 644 "$ROOT/packaging/overlays/typixdeck-cm4-emc2301.dts" "$STAGE/usr/share/doc/typix-launcher/typixdeck-cm4-emc2301.dts"
+dtc -@ -I dts -O dtb -o "$STAGE/usr/share/typix-launcher/typixdeck-cm4-emc2301.dtbo" "$ROOT/packaging/overlays/typixdeck-cm4-emc2301.dts"
 install -m 755 "$ROOT/packaging/debian/postinst" "$STAGE/DEBIAN/postinst"
+install -m 755 "$ROOT/packaging/debian/prerm" "$STAGE/DEBIAN/prerm"
 dpkg-deb --root-owner-group --build "$STAGE" "$DIST/typix-launcher_${VERSION}_all.deb"

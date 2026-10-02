@@ -5,12 +5,16 @@ Run on a GTK desktop: python3 tools/check-status-ui.py /tmp/status-preview.png
 The screenshot is a layout fixture, not measured device telemetry.
 """
 import sys
+import importlib.util
+import os
 import subprocess
 import time
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+if sys.platform == "darwin":
+    os.environ.setdefault("GDK_BACKEND", "x11")
 import gi
 gi.require_version('Gtk', '3.0')
 gi.require_version('Gdk', '3.0')
@@ -20,9 +24,17 @@ from typix_launcher.app import Launcher
 from typix_launcher.desktop import DesktopEntry
 from typix_launcher.status import battery_indicator, wifi_indicator
 
+spec = importlib.util.spec_from_file_location("preview", Path(__file__).with_name("preview.py"))
+preview = importlib.util.module_from_spec(spec)
+spec.loader.exec_module(preview)
+
 
 def main():
+    preview.require_display()
     app = Launcher()
+    app.autostart = preview.PreviewSettings()
+    app.runtime = preview.PreviewRuntime()
+    app.fan = preview.PreviewFanController()
     app.set_application_id('ai.typixdeck.launcher.LayoutCheck')
     app.register(None)
     rows = [('Copilot', '固件', 'applications-system'), ('Store', '应用', 'system-software-install'),
@@ -33,6 +45,7 @@ def main():
     # Build the real widget tree without mapping an ApplicationWindow or
     # altering the running launcher's window/session/desktop shortcuts.
     with patch('typix_launcher.app.desktop.load_apps', return_value=fixtures), \
+         patch('typix_launcher.app.StatusStrip', preview.PreviewStatus), \
          patch.object(Launcher, 'watch_desktop_dirs'), \
          patch.object(Gtk.ApplicationWindow, 'show_all'):
         app.do_activate()

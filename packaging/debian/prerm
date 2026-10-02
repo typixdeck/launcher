@@ -1,0 +1,13 @@
+#!/bin/sh
+set -eu
+if [ -d /run/systemd/system ] && command -v systemctl >/dev/null 2>&1; then
+    case "$1" in
+        upgrade)
+            /usr/bin/python3 -I -m typix_launcher.fan_maintenance pre-upgrade
+            ;;
+        remove)
+            # Stop hooks restore full duty before the program is removed.
+            /usr/bin/python3 -I -m typix_launcher.fan_maintenance pre-remove
+            ;;
+    esac
+fi

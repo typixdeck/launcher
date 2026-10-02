@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE policyconfig PUBLIC "-//freedesktop//DTD PolicyKit Policy Configuration 1.0//EN" "http://www.freedesktop.org/standards/PolicyKit/1.0/policyconfig.dtd">
+<policyconfig>
+  <action id="ai.typixdeck.launcher.fan">
+    <description>Configure the TypixDeck CN5 cooling fan</description>
+    <description xml:lang="zh_CN">配置 TypixDeck CN5 散热风扇</description>
+    <message>Administrator authentication is required to change fan control.</message>
+    <message xml:lang="zh_CN">调整风扇控制需要管理员认证。</message>
+    <defaults>
+      <allow_any>no</allow_any>
+      <allow_inactive>no</allow_inactive>
+      <allow_active>auth_admin</allow_active>
+    </defaults>
+    <annotate key="org.freedesktop.policykit.exec.path">/usr/libexec/typix-launcher-fan</annotate>
+  </action>
+</policyconfig>

@@ -1,0 +1,56 @@
+# Launcher 风扇控制
+
+0.3.2 在设置（F9）里加入风扇自动温控和手动调速。适用的是 TypixDeck 0720 **CN5 上的 EMC2301**；不是 ESP32 固件功能。CN3 的 CM5 专用引脚不能作为 CM4 的调速接口。
+
+## 使用
+
+- **自动**：按 CPU 温度调整占空比，降温时带滞回，避免在阈值附近反复变速。
+- **手动**：选择 30–100% 后点击“应用”。这里是 PWM 占空比，不是风扇最高转速的百分比。
+- 显示 CPU 温度、实际 PWM 读回值和测速反馈 RPM。驱动可能按离散档位量化，设置值与实际值分别显示。
+- 两种模式都保留过热和异常保护；温度或测速无法可靠读取、风扇持续没有转速反馈时回退全速，界面显示原因，不用设置值冒充测量值。
+
+修改使用系统 Polkit 管理员认证。取消授权保留原设置；应用成功后配置保存在 root 管理的 `/etc/typix-launcher/fan.json`。控制由独立的小型系统服务执行，关闭 Launcher 或进入单应用模式后继续运行。第一次安装 deb 不启用服务；用户首次明确应用设置后才启用开机运行。服务正常停止或崩溃后的退出钩子请求全速；若控制器已经断开或内核拒绝写入，软件无法保证物理风扇恢复，状态会报告失败。
+
+现有 root 配置损坏或权限不安全时，助手会拒绝覆盖，提示管理员检查。管理员可先停止风扇服务，备份 `/etc/typix-launcher/fan.json` 并移走损坏文件，确认配置目录是 root 所有且不可由普通用户写入后，再从设置页重新应用；不要直接放宽 sysfs 或配置目录权限。
+
+升级时仅记录并恢复原先正在运行的服务，停止旧服务后才替换控制代码；未运行的服务不会因升级被开启。移除包会停止并禁用服务，清除升级恢复记录。如果后续包移除失败，风扇保持全速请求，管理员可在修复包状态后从设置页重新应用原配置；不会偷偷重新启用已撤销的风扇控制。
+
+GUI 始终以普通用户运行。设置页的采样仅在页面打开期间进行，不扫描 I²C、写 GPIO、抢占串口、切换屏幕或修改启动配置。源码预览的风扇数据和操作全部是内存中的演示，不接触硬件或系统配置。
+
+## 驱动与控制器识别
+
+后端使用 Linux `emc2305` 驱动提供的 `pwm1`、`fan1_input` 和故障状态。运行时核对唯一的单通道 EMC2301、I²C 地址 `0x2f`、驱动、设备树兼容字段及 CM4 板载控制器路径，不固定 `hwmonN` 或 `i2c-N` 编号。没有接口、多实例、路径不符、权限错误均显示不可用。
+
+已有内核 thermal cooling map 控制同一风扇时，不再启动另一套温控程序。不能让用户态和内核温控轮流改写同一个 PWM。手动操作也不能覆盖内核的保护。
+
+初次启用 CN5 驱动需要管理员检查具体主板与设备树；安装包和 GUI **不会自动执行**以下维护。包内提供仅注册 EMC2301、没有 thermal cooling map 的 overlay，源码位于 `packaging/overlays/typixdeck-cm4-emc2301.dts`，编译产物位于 `/usr/share/typix-launcher/typixdeck-cm4-emc2301.dtbo`。
+
+### CM4 / 0720 主板的首次配置
+
+1. 确认实际是 CM4、风扇接 CN5、额定 5V，并核对 `/proc/device-tree` 的板载 I²C 控制器路径为 `/soc/i2c@7e205000`。这份 overlay 不用于 CM0/CM5，也不是按型号猜测驱动存在的替代品；其他平台未验证时禁用调速。
+2. 检查 `/boot/firmware/config.txt` 和其 include 文件是否已有 `i2c0`、`i2c-fan`、EMC2301 或其他风扇服务。已有配置先审查归属和冲突，不重复叠加，不自动卸载现有驱动。
+3. 备份启动配置，将包内 overlay 安装到官方镜像的 overlays 目录：
+
+   ```sh
+   sudo install -m 644 /usr/share/typix-launcher/typixdeck-cm4-emc2301.dtbo /boot/firmware/overlays/typixdeck-cm4-emc2301.dtbo
+   ```
+
+   在经过审查的 CM4 启动段使用：
+
+   ```ini
+   [cm4]
+   dtoverlay=i2c0,pins_44_45
+   dtoverlay=typixdeck-cm4-emc2301
+   [all]
+   ```
+
+   `i2c0` 的官方 overlay 负责 GPIO44/45 和总线映射，本包 overlay 只注册固定 `0x2f` 风扇控制器。不要同时添加官方 `i2c-fan` 的 CPU cooling maps。
+4. 保存后在合适时间正常重启。首次配置完成后仍需检查驱动、实际 PWM/转速读回和风扇听感，再在 Launcher 中应用设置。软件检测到控制器并不等于风扇线序或机械安装已经正确。
+
+撤销时先停止 `typix-launcher-fan.service`（退出路径请求全速），仅恢复本次修改的启动配置，再正常重启。不要用删除 sysfs 文件、强制卸载或改写其他芯片寄存器代替恢复。
+
+## 验证范围
+
+本次包含配置校验、控制器选择、温控逻辑、异常全速、事务恢复、授权取消和预览隔离的离线测试。构建只编译 overlay，不向本机或设备的启动分区写入。**2026-10-02 本轮 SSH 被执行环境拒绝，尚未在新接入的风扇上完成驱动启用、PWM/RPM 响应及长期温控验收。** 既有 2026-09-28 EMC2301 芯片访问记录不能替代这次新风扇的验收。
+
+参考：[官方 0720 网表](https://github.com/TypixNode/TypixDeck-schematics/blob/b7c3860cb448962655eddb853e23564bfb7426cd/hardware/TypixDeck_0720/Netlist_PCB_TypixNode_1_2026-07-20.tel)、[Linux EMC2305 文档](https://www.kernel.org/doc/html/latest/hwmon/emc2305.html)、[Raspberry Pi i2c0 overlay](https://github.com/raspberrypi/linux/blob/rpi-6.18.y/arch/arm/boot/dts/overlays/i2c0-overlay.dts)、[Raspberry Pi 驱动](https://github.com/raspberrypi/linux/blob/rpi-6.18.y/drivers/hwmon/emc2305.c)。

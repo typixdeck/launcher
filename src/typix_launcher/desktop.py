@@ -136,6 +136,7 @@ class DesktopEntry:
 def load_apps() -> list[DesktopEntry]:
     apps: list[DesktopEntry] = []
     seen: set[str] = set()
+    seen_launches: set[tuple] = set()
     for priority, directory in enumerate(default_desktop_dirs()):
         try:
             paths = sorted(directory.glob("*.desktop"), key=lambda item: item.name.casefold())
@@ -162,7 +163,14 @@ def load_apps() -> list[DesktopEntry]:
             try_exec = section.get("TryExec", "").strip()
             if try_exec and not (Path(try_exec).exists() or shutil.which(try_exec)):
                 continue
+            try:
+                launch = launch_signature(path, section)
+            except (OSError, ValueError):
+                continue
             seen.add(identity)
+            if launch in seen_launches:
+                continue
+            seen_launches.add(launch)
             category = category_name(section.get("Categories", ""))
             apps.append(
                 DesktopEntry(
@@ -183,6 +191,10 @@ def expand_exec(path: Path) -> tuple[list[str], Path | None, bool]:
     if loaded is None:
         raise ValueError(f"无法读取启动项：{path}")
     _, section = loaded
+    return _expand_section_exec(path, section)
+
+
+def _expand_section_exec(path: Path, section: configparser.SectionProxy) -> tuple[list[str], Path | None, bool]:
     name = localized(section, "Name")
     icon = integrated_icon(path, section.get("Icon", "").strip())
     command: list[str] = []
@@ -202,6 +214,31 @@ def expand_exec(path: Path) -> tuple[list[str], Path | None, bool]:
         raise ValueError(f"启动项没有可执行命令：{path}")
     working_dir = section.get("Path", "").strip()
     return command, Path(working_dir) if working_dir else None, is_true(section.get("Terminal", "false"))
+
+
+def launch_signature(path: Path, section: configparser.SectionProxy) -> tuple:
+    """Collapse copied/linked shortcuts only when their launch behavior agrees.
+
+    Never deduplicate by a visible name, an executable basename or package
+    alone: documents, URLs, environments and terminal/cwd choices are distinct.
+    Field codes are expanded exactly as the supervisor will launch them.
+    """
+    command, working_dir, terminal = _expand_section_exec(path, section)
+    executable = command[0]
+    resolved = shutil.which(executable) if not Path(executable).is_absolute() else executable
+    if resolved:
+        # Preserve the invocation path: venv Python and argv[0]-dispatched
+        # applets can share a real binary while selecting different behavior.
+        command[0] = str(Path(resolved).absolute())
+    directory = str(working_dir.resolve()) if working_dir is not None else None
+    dbus = is_true(section.get("DBusActivatable", "false"))
+    return (
+        tuple(command), directory, terminal,
+        path.stem if dbus else None,
+        section.get("StartupWMClass", "").strip(),
+        tuple(sorted(value.strip().casefold() for value in
+                     section.get("X-TypixDeck-FullscreenAppId", "").split(";") if value.strip())),
+    )
 
 
 def request_path() -> Path:

@@ -77,6 +77,12 @@ sh install.sh --start
 
 配置：`$XDG_CONFIG_HOME/typix-launcher/runtime.json`（默认 `~/.config/typix-launcher/runtime.json`），写入失败保留原设置。源码预览使用内存中的演示设置，不写这个文件。
 
+## 风扇自动 / 手动调速（0.3.2）
+
+设置（F9）中选择自动温控或手动 30–100%，点击“应用”后通过系统管理员认证。显示 CPU 温度、实际 PWM 和 RPM；高温、传感器异常或持续没有转速反馈时回退全速。配置和独立温控服务在关闭 Launcher 后继续生效，首次安装不自动启用。
+
+适用于已启用驱动的 TypixDeck CN5 / EMC2301；运行时校验控制器，不固定 I²C 或 hwmon 编号。未检测到驱动或已有内核温控冲突时禁用调速。首次驱动配置、控制边界和本轮真机验收限制见 [风扇控制](docs/FAN-CONTROL.md)。预览使用演示风扇，不需要 root，不读写设备。
+
 ## 电量与 Wi-Fi（0.2.2）
 
 顶部使用纯图标表示电池电量和 Wi-Fi 信号，每 10 秒更新；鼠标悬停可查看来源、读数与状态。没有状态按钮或刷新按钮，每次打开 Launcher 自动重新读取桌面快捷方式，目录变化也会自动更新。应用数量位于标题下方，保留三列网格。
@@ -150,6 +156,8 @@ Store 使用固定 `--open-installed <package> <desktopFile>` 启动接口。Lau
 
 支持复制的 `.desktop`、符号链接，以及 Link 指向的本地绝对路径和 `file://` URL。保留 `Hidden`、`NoDisplay`、`TryExec`、本地化 Name/Comment、`X-TypixNode-Exclude` 和 `X-TypixDeck-Exclude` 过滤。旧的多目录环境变量不再用于扩展扫描范围。
 
+0.3.2 按完整启动命令、参数、工作目录、终端模式及窗口策略去重：同一启动项改名后的副本和链接只显示一个卡片，保留不同文件、URL、环境变量或启动方式的快捷方式。此操作只影响显示，不删除用户的桌面文件。应用名称显示层去掉独立的 Typix / TypixDeck 前缀；内部软件包名和启动参数用于正常升级与启动。
+
 ## 构建
 
 在 CM4 上用 ChatGPT 修改源码、运行独立预览和通过 GitHub 与 Mac 交接，见 [语音编程指南](docs/VOICE-CODING.md)。`python3 tools/preview.py` 使用当前 checkout 的界面代码和演示数据，不触发设备电源或安装操作。
@@ -161,16 +169,18 @@ Store 使用固定 `--open-installed <package> <desktopFile>` 启动接口。Lau
 产物：
 
 ```text
-dist/typix-launcher_0.3.1-1_all.deb
+dist/typix-launcher_0.3.2-1_all.deb
 ```
 
 运行依赖：
 
 ```text
-python3, python3-gi, gir1.2-gtk-3.0, xdg-user-dirs
+python3, python3-gi, gir1.2-gtk-3.0, xdg-user-dirs, pkexec, polkitd, systemd
 ```
 
 推荐安装 `wlopm` 以支持息屏/唤醒。
+
+构建机另需 `dpkg-deb` 和 `dtc`（Debian 软件包 `device-tree-compiler`）来编译随包提供的可选风扇 overlay；构建不会把它安装到启动分区。
 
 ## 测试
 

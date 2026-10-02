@@ -1,0 +1,31 @@
+[Unit]
+Description=TypixDeck CN5 EMC2301 fan control
+ConditionPathExists=/etc/typix-launcher/fan.json
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/python3 -I -m typix_launcher.fan_service
+ExecStopPost=/usr/bin/python3 -I -m typix_launcher.fan_service --failsafe
+Restart=on-failure
+RestartSec=3
+TimeoutStopSec=8
+User=root
+Group=root
+RuntimeDirectory=typix-launcher-fan
+RuntimeDirectoryMode=0755
+RuntimeDirectoryPreserve=yes
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+ReadWritePaths=/run/typix-launcher-fan /sys
+CapabilityBoundingSet=
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictRealtime=yes
+RestrictAddressFamilies=AF_UNIX
+UMask=0022
+SyslogIdentifier=typix-launcher-fan
+
+[Install]
+WantedBy=multi-user.target

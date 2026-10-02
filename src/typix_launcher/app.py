@@ -20,6 +20,9 @@ from .supervisor import Supervisor
 from .runtime import AppJobs, RuntimePreferences, external_launch
 from .fullscreen import activate_existing
 from .handoff import queue, launch_entry
+from .fan import FanController
+from .fan_panel import FanPanel
+from .names import display_name
 
 APP_ID = "ai.typixdeck.launcher"
 
@@ -50,6 +53,9 @@ class Launcher(Gtk.Application):
         self.closing = False
         self.category = "全部"
         self.category_picker = None
+        self.fan = FanController()
+        self.settings_dialog = None
+        self.fan_panel = None
 
     def do_command_line(self, command_line):
         args = command_line.get_arguments()[1:]
@@ -179,6 +185,10 @@ class Launcher(Gtk.Application):
 
     def do_shutdown(self) -> None:
         self.closing = True
+        if self.fan_panel is not None:
+            self.fan_panel.close()
+        if self.settings_dialog is not None:
+            self.settings_dialog.destroy()
         if self.status_strip is not None:
             self.status_strip.close()
         Gtk.Application.do_shutdown(self)
@@ -258,7 +268,7 @@ class Launcher(Gtk.Application):
         content.set_border_width(12)
         image = self.make_icon(app.icon)
         image.set_halign(Gtk.Align.CENTER)
-        name = Gtk.Label(label=app.name)
+        name = Gtk.Label(label=display_name(app.name))
         name.set_ellipsize(Pango.EllipsizeMode.END)
         name.set_max_width_chars(20)
         name.get_style_context().add_class("app-name")
@@ -367,11 +377,20 @@ class Launcher(Gtk.Application):
     def show_settings(self) -> None:
         if self.window is None:
             return
+        if self.settings_dialog is not None:
+            self.settings_dialog.present()
+            return
         dialog = Gtk.Dialog(title="启动器设置", transient_for=self.window, modal=True)
-        dialog.set_default_size(600, 360)
+        self.settings_dialog = dialog
+        dialog.set_default_size(600, 560)
         dialog.add_button("关闭", Gtk.ResponseType.CLOSE)
         content_area = dialog.get_content_area()
-        content_area.set_spacing(14)
+        scroll = Gtk.ScrolledWindow()
+        scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        scroll.set_kinetic_scrolling(True)
+        body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        scroll.add(body)
+        content_area.pack_start(scroll, True, True, 0)
         if dialog.get_header_bar() is None:
             dialog.set_titlebar(Gtk.HeaderBar())
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
@@ -394,11 +413,12 @@ class Launcher(Gtk.Application):
         switch.connect("state-set", self.on_autostart_changed)
         row.pack_start(text_box, True, True, 0)
         row.pack_start(switch, False, False, 0)
-        content_area.pack_start(row, False, False, 0)
+        body.pack_start(row, False, False, 0)
         mode_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=8)
         mode_box.set_border_width(18)
         mode_box.pack_start(Gtk.Label(label="应用运行模式", xalign=0), False, False, 0)
         mode = Gtk.ComboBoxText()
+        mode.set_name("runtime-mode")
         for value, label in (("auto", "自动选择"), ("single", "单应用 · 省内存"),
                              ("resident", "后台模式 · Alt+Tab 切换")):
             mode.append(value, label)
@@ -432,10 +452,18 @@ class Launcher(Gtk.Application):
         explain()
         mode_box.pack_start(mode, False, False, 0)
         mode_box.pack_start(explanation, False, False, 0)
-        content_area.pack_start(mode_box, False, False, 0)
-        dialog.show_all()
-        dialog.run()
-        dialog.destroy()
+        body.pack_start(mode_box, False, False, 0)
+        self.fan_panel = panel = FanPanel(self.fan)
+        body.pack_start(panel, False, False, 0)
+        try:
+            dialog.show_all()
+            panel.start()
+            dialog.run()
+        finally:
+            panel.close()
+            dialog.destroy()
+            self.fan_panel = None
+            self.settings_dialog = None
 
     def on_autostart_changed(self, _switch: Gtk.Switch, value: bool) -> bool:
         try:

@@ -1,0 +1,23 @@
+// SPDX-License-Identifier: MIT
+// TypixDeck 0720 CN5: register only the EMC2301 after Raspberry Pi's
+// i2c0,pins_44_45 overlay. No thermal maps: Launcher owns the temperature curve.
+// Opt-in administrator setup; packaging never installs this to /boot.
+/dts-v1/;
+/plugin/;
+
+/ {
+    compatible = "brcm,bcm2711";
+    fragment@0 {
+        target-path = "/soc/i2c@7e205000";
+        __overlay__ {
+            #address-cells = <1>;
+            #size-cells = <0>;
+            emc2301@2f {
+                compatible = "microchip,emc2301", "microchip,emc2305";
+                reg = <0x2f>;
+                #cooling-cells = <2>;
+                status = "okay";
+            };
+        };
+    };
+};

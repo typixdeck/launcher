@@ -2,10 +2,13 @@
 """Exercise GTK lifecycle routing/settings against fakes, with no mapped windows."""
 from pathlib import Path
 import importlib.util
+import os
 import sys
 import tempfile
 from unittest.mock import Mock, patch
 
+if sys.platform == "darwin":
+    os.environ.setdefault("GDK_BACKEND", "x11")
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 from typix_launcher import app as module
 from typix_launcher.app import Gio, GLib, Gtk, Launcher
@@ -25,12 +28,14 @@ def walk(widget):
 
 
 def main():
+    preview.require_display()
     with tempfile.TemporaryDirectory(prefix="launcher-runtime-check-") as folder:
         prefs = RuntimePreferences(Path(folder) / "runtime.json")
         fixture = DesktopEntry(Path(folder) / "example.desktop", "示例", "", "测试", "applications-system", 0)
         app = Launcher()
         app.runtime = prefs
         app.autostart = preview.PreviewSettings()
+        app.fan = preview.PreviewFanController()
         app.set_application_id("ai.typixdeck.launcher.RuntimeCheck")
         app.set_flags(Gio.ApplicationFlags.NON_UNIQUE)
         app.register(None)
@@ -88,7 +93,8 @@ def main():
                 focus.assert_not_called()
 
             def exercise_settings(dialog):
-                combos = [w for w in walk(dialog) if isinstance(w, Gtk.ComboBoxText)]
+                combos = [w for w in walk(dialog) if isinstance(w, Gtk.ComboBoxText)
+                          and w.get_name() == "runtime-mode"]
                 assert len(combos) == 1
                 combos[0].set_active_id("resident")
                 assert RuntimePreferences(prefs.path).effective() == "resident"
