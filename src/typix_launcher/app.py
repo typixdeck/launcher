@@ -475,6 +475,7 @@ class Launcher(Gtk.Application):
         self.fan_panel = panel = FanPanel(self.fan)
         fan_scroll = Gtk.ScrolledWindow()
         fan_scroll.set_policy(Gtk.PolicyType.NEVER, Gtk.PolicyType.AUTOMATIC)
+        fan_scroll.set_capture_button_press(False)
         fan_scroll.add(panel)
         notebook.append_page(fan_scroll, Gtk.Label(label='风扇'))
         try:

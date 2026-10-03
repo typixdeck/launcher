@@ -10,10 +10,10 @@
       "en": "Launcher"
     },
     "summary": {
-      "zh-CN": "横向分类、桌面快捷方式去重、应用运行模式和可编辑风扇温控曲线"
+      "zh-CN": "横向分类、桌面快捷方式去重、应用运行模式和触摸风扇温控曲线"
     },
     "description": {
-      "zh-CN": "原生 GTK3 启动器，只读取桌面快捷方式，合并相同启动行为的副本，保留不同文件和 URL 参数。支持自动、单应用省内存或后台运行模式。设置内提供 CN5 EMC2301 四点温控曲线、手动滑块和百分比输入和实时 PWM/RPM/温度，保留过热和异常全速保护；缺少驱动时禁用调速。"
+      "zh-CN": "原生 GTK3 启动器，只读取桌面快捷方式，合并相同启动行为的副本，保留不同文件和 URL 参数。支持自动、单应用省内存或后台运行模式。设置内提供 CN5 EMC2301 四点可触摸拖动温控曲线、手动滑块和百分比输入和实时 PWM/RPM/温度，保留过热和异常全速保护；缺少驱动时禁用调速。"
     },
     "categories": [
       "System"
@@ -66,10 +66,10 @@
     "icon": "ai.typixdeck.launcher"
   },
   "release": {
-    "version": "0.3.3-1",
-    "file": "dist/typix-launcher_0.3.3-1_all.deb",
-    "sha256": "d4724a56f24494ce3719cec47666193a6d7cdba1f95a4656299f27550208b063",
-    "sizeBytes": 38492
+    "version": "0.3.4-1",
+    "file": "dist/typix-launcher_0.3.4-1_all.deb",
+    "sha256": "5732b66c7dc292817295eade7df79e7c6d7a2257f07f8e011b67e015554bb9e1",
+    "sizeBytes": 39992
   },
   "screenshots": [
     {
@@ -78,7 +78,7 @@
     },
     {
       "path": "docs/screenshots/fan-curve.png",
-      "caption": "0.3.3 风扇温控曲线（CM4 GTK 隔离演示）"
+      "caption": "0.3.4 可触摸拖动风扇曲线（800×600 GTK 隔离演示）"
     },
     {
       "path": "docs/screenshots/runtime-settings.png",
