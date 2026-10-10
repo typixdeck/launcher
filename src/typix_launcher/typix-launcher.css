@@ -175,6 +175,62 @@ combobox button:hover {
   color: #ffffff;
 }
 
+/* PiXtrix styles the titlebar, dialog footer and notebook frame separately.
+ * Own these surfaces as well as the content so the system's light chrome does
+ * not surround the dark settings panel, including when the window is inactive. */
+.launcher-settings,
+.launcher-settings > box,
+.launcher-settings .dialog-vbox,
+.launcher-settings .dialog-action-box,
+.launcher-settings .dialog-action-area {
+  background: #071018;
+  color: #eef8ff;
+  border: none;
+  box-shadow: none;
+}
+
+.launcher-settings decoration {
+  background: #071018;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #274354;
+  border-radius: 12px;
+  box-shadow: none;
+}
+
+.launcher-settings headerbar,
+.launcher-settings headerbar:backdrop {
+  min-height: 30px;
+  padding: 6px 12px;
+  background: #102331;
+  color: #eef8ff;
+  border: none;
+  border-bottom: 1px solid #274354;
+  box-shadow: none;
+  text-shadow: none;
+}
+
+.launcher-settings headerbar .title {
+  color: #eef8ff;
+  font-size: 18px;
+  font-weight: 600;
+  text-shadow: none;
+}
+
+.launcher-settings notebook,
+.launcher-settings notebook > stack,
+.launcher-settings scrolledwindow {
+  padding: 0;
+  border: none;
+  box-shadow: none;
+}
+
+.launcher-settings notebook > header {
+  border: none;
+  border-bottom: 1px solid #274354;
+  box-shadow: none;
+}
+
 .launcher-settings notebook,
 .launcher-settings notebook header,
 .launcher-settings notebook stack,
@@ -189,6 +245,7 @@ combobox button:hover {
   min-width: 100px;
   color: #b9cedc;
   border-bottom: 2px solid transparent;
+  box-shadow: none;
 }
 
 .launcher-settings notebook tab:checked {

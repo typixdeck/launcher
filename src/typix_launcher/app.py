@@ -399,7 +399,7 @@ class Launcher(Gtk.Application):
         dialog = Gtk.Dialog(title="启动器设置", transient_for=self.window, modal=True)
         dialog.get_style_context().add_class('launcher-settings')
         self.settings_dialog = dialog
-        dialog.set_default_size(600, 560)
+        dialog.set_default_size(600, 540)
         dialog.add_button("关闭", Gtk.ResponseType.CLOSE)
         content_area = dialog.get_content_area()
         notebook = Gtk.Notebook()
@@ -410,8 +410,12 @@ class Launcher(Gtk.Application):
         body = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         scroll.add(body)
         notebook.append_page(scroll, Gtk.Label(label='常规'))
-        if dialog.get_header_bar() is None:
-            dialog.set_titlebar(Gtk.HeaderBar())
+        header = dialog.get_header_bar()
+        if header is None:
+            header = Gtk.HeaderBar()
+            dialog.set_titlebar(header)
+        header.set_title("设置")
+        header.set_show_close_button(False)  # Keep the existing keyboard-accessible Close action.
         row = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=12)
         row.set_border_width(18)
         text_box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=3)

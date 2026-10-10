@@ -66,10 +66,10 @@
     "icon": "ai.typixdeck.launcher"
   },
   "release": {
-    "version": "0.3.4-1",
-    "file": "dist/typix-launcher_0.3.4-1_all.deb",
-    "sha256": "5732b66c7dc292817295eade7df79e7c6d7a2257f07f8e011b67e015554bb9e1",
-    "sizeBytes": 39992
+    "version": "0.3.5-1",
+    "file": "dist/typix-launcher_0.3.5-1_all.deb",
+    "sha256": "733329027b261919cc91432340ef2e6b0e6756911e410bb0a98ed9664f5b89d6",
+    "sizeBytes": 40428
   },
   "screenshots": [
     {
@@ -94,7 +94,7 @@
     },
     {
       "path": "docs/screenshots/settings.png",
-      "caption": "开机自动启动设置"
+      "caption": "0.3.5 统一深色标题栏、边框和底部操作区（PiXtrix 主题隔离预览）"
     }
   ]
 }

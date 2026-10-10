@@ -1,5 +1,9 @@
 # TypixDeck Launcher
 
+0.3.5 统一设置页的标题栏、窗口边框、页签和底部操作区配色，修复 Raspberry Pi OS
+PiXtrix 主题下的灰色空标题栏与浅色边框，并调整窗口高度适配约 800×600 的逻辑显示。
+保留 0.3.4 的手指拖动温控曲线；升级不改变已保存的风扇模式与输出。
+
 面向官方 Raspberry Pi OS ARM64 的原生全屏启动器，主验收设备为 CM4。只显示用户桌面上的 `.desktop` 快捷方式；保持深色 GTK3、约 800×600 逻辑布局、三列应用网格和键盘导航。支持单应用省内存与后台切换两种运行方式，可在设置中选择。
 
 - 平台：官方 Raspberry Pi OS ARM64 Bookworm / Trixie，兼容性与可用功能按运行时探测。
@@ -21,9 +25,9 @@
 
 桌面快捷方式首页与键盘焦点。
 
-![开机自动启动设置](docs/screenshots/settings.png)
+![0.3.5 设置页统一深色外观](docs/screenshots/settings.png)
 
-开机自动启动设置。
+0.3.5 设置页，使用 PiXtrix 主题和隔离演示数据验证完整窗口外观。
 
 <!-- app-screenshots:end -->
 

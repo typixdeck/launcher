@@ -27,7 +27,7 @@ class FanPanel(Gtk.Box):
         self.curve_selection = 0
         self.curve_drag = None
         self.curve_scroll = None
-        self.set_border_width(18)
+        self.set_border_width(12)
         self.get_style_context().add_class('fan-panel')
         self.connect("destroy", lambda _widget: self.close())
 
