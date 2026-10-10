@@ -202,6 +202,75 @@ class InstallerTests(unittest.TestCase):
             with self.assertRaisesRegex(self.api["InstallError"], "expanded"):
                 self.api["space_check"](self.directory, self.verify(), staging=True)
 
+    def test_public_system_files_are_readable_under_private_download_umask(self):
+        self.api["root_owned"] = Mock()
+        target = self.directory / "etc" / "typix-store" / "github.json"
+        previous = os.umask(0o077)
+        try:
+            self.api["create_system_file"](target, b"{}\n")
+        finally:
+            os.umask(previous)
+        for directory in (target.parent, target.parent.parent):
+            self.assertEqual(stat.S_IMODE(directory.stat().st_mode), 0o755)
+        self.assertEqual(stat.S_IMODE(target.stat().st_mode), 0o644)
+        self.assertEqual(target.read_bytes(), b"{}\n")
+
+    def source_permission_fixture(self):
+        config = self.directory / "etc" / "typix-store" / "github.json"
+        key = self.directory / "share" / "typix-store" / "keys" / "bootstrap.pem"
+        for path in (config, key):
+            path.parent.mkdir(parents=True)
+            path.parent.chmod(0o700)
+        key.write_bytes(self.api["PUBLIC_KEY"])
+        contents = json.dumps(dict(self.api["SOURCE_CONFIG"], publicKey=str(key)))
+        config.write_text(contents)
+        config.chmod(0o600)
+        self.api.update(CONFIG_PATH=config, KEY_PATH=key, root_owned=Mock())
+        return config, key, contents
+
+    def test_legacy_permissions_repair_preserves_source_bytes_and_unrelated_paths(self):
+        config, key, contents = self.source_permission_fixture()
+        private_parent = config.parent.parent
+        private_parent.chmod(0o700)
+        private_file = config.parent / "private-unrelated"
+        private_file.write_text("fixture")
+        private_file.chmod(0o600)
+        self.api["repair_source_access"]()
+        self.assertEqual(config.read_text(), contents)
+        self.assertEqual(config.stat().st_mode & 0o777, 0o644)
+        self.assertEqual(config.parent.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(key.parent.stat().st_mode & 0o777, 0o755)
+        self.assertEqual(private_parent.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(private_file.stat().st_mode & 0o777, 0o600)
+
+    def test_permission_repair_does_not_expose_unknown_private_config_fields(self):
+        config, key, _ = self.source_permission_fixture()
+        contents = json.dumps(dict(self.api["SOURCE_CONFIG"], publicKey=str(key), custom="fixture"))
+        config.write_text(contents)
+        with self.assertRaisesRegex(self.api["InstallError"], "custom fields"):
+            self.api["repair_source_access"]()
+        self.assertEqual(config.stat().st_mode & 0o777, 0o600)
+        self.assertEqual(config.parent.stat().st_mode & 0o777, 0o700)
+        self.assertEqual(config.read_text(), contents)
+
+    def test_permission_repair_refuses_conflicting_source_without_chmod(self):
+        config, _, _ = self.source_permission_fixture()
+        config.write_text(json.dumps(dict(self.api["SOURCE_CONFIG"], repository="custom/store")))
+        with self.assertRaisesRegex(self.api["InstallError"], "customized"):
+            self.api["repair_source_access"]()
+        self.assertEqual(config.parent.stat().st_mode & 0o777, 0o700)
+
+    def test_unreadable_source_in_check_mode_stays_read_only(self):
+        self.api["profile"] = lambda: "raspios-trixie"
+        self.api["audit_dpkg"] = Mock()
+        self.api["check_config"] = Mock(side_effect=PermissionError("fixture"))
+        self.api["run_privileged"] = Mock()
+        with patch.object(self.api["os"], "geteuid", return_value=1000), \
+                patch.object(self.api["sys"], "argv", ["install.sh", "--check"]):
+            with self.assertRaisesRegex(self.api["InstallError"], "without --check"):
+                self.api["main"]()
+        self.api["run_privileged"].assert_not_called()
+
     def test_check_downloads_and_verifies_without_sudo_or_shortcut_changes(self):
         self.api["profile"] = lambda: "raspios-trixie"
         self.api["audit_dpkg"] = Mock()
@@ -221,6 +290,28 @@ class InstallerTests(unittest.TestCase):
         self.assertEqual(self.api["verify_package"].call_count, 2)
         self.assertEqual(runner.call_count, 1)
         self.assertIn("--simulate", runner.call_args.args[0])
+
+    def test_unreadable_source_normal_install_verifies_packages_before_authorization(self):
+        self.api["profile"] = lambda: "raspios-trixie"
+        self.api["audit_dpkg"] = Mock()
+        self.api["check_config"] = Mock(side_effect=[PermissionError("fixture"), None])
+        self.api["space_check"] = Mock()
+        self.api["version_check"] = Mock()
+        self.api["verify_package"] = Mock()
+        self.api["desktop_shortcut"] = Mock()
+        def authorized(stage):
+            self.assertEqual(self.api["verify_package"].call_count, 2)
+            self.assertTrue((Path(stage) / "catalog.json.sig").is_file())
+        self.api["run_privileged"] = Mock(side_effect=authorized)
+        contents = json.dumps(self.catalog).encode()
+        downloads = {"catalog.json": contents, "catalog.json.sig": self.private.sign(contents)}
+        self.api["download"] = lambda name, target, limit: target.write_bytes(downloads.get(name, self.payload))
+        with patch.object(self.api["os"], "geteuid", return_value=1000), \
+                patch.object(self.api["sys"], "argv", ["install.sh"]), \
+                patch.object(self.api["subprocess"], "run", return_value=SimpleNamespace(returncode=0)):
+            self.assertEqual(self.api["main"](), 0)
+        self.api["run_privileged"].assert_called_once()
+        self.assertEqual(self.api["check_config"].call_count, 2)
 
     def test_download_uses_read1_and_refuses_oversized_body(self):
         import urllib.request

@@ -240,7 +240,31 @@ def make_system_directory(path):
         if not os.path.lexists(component):
             root_owned(component.parent, directory=True)
             component.mkdir(mode=0o755)
+            # The shell uses umask 077 for private downloads. Public system
+            # directories need an explicit mode, independent of that umask.
+            component.chmod(0o755)
         root_owned(component, directory=True)
+
+def repair_source_access():
+    # Validate root ownership, source identity and the pinned public key before
+    # repairing only the public paths this installer manages. Never recurse or
+    # relax arbitrary ancestors of a customized key path.
+    check_config()
+    config = json.loads(CONFIG_PATH.read_bytes())
+    key = Path(config["publicKey"])
+    public_directories = (CONFIG_PATH.parent, KEY_PATH.parent.parent, KEY_PATH.parent)
+    for directory in public_directories:
+        if os.path.lexists(directory):
+            root_owned(directory, directory=True)
+    require(set(config) <= set(SOURCE_CONFIG), "Configuration contains custom fields; permissions preserved. Ask an administrator to review it")
+    for directory in public_directories:
+        if os.path.lexists(directory):
+            directory.chmod(0o755)
+    CONFIG_PATH.chmod(0o644)
+    for public_key in {KEY_PATH, key}:
+        if public_key.parent == KEY_PATH.parent and os.path.lexists(public_key):
+            # check_config validated these as matching public keys.
+            public_key.chmod(0o644)
 
 def copy_input(source_fd, name, destination, uid, limit):
     descriptor = os.open(name, os.O_RDONLY | os.O_NOFOLLOW | os.O_NONBLOCK, dir_fd=source_fd)
@@ -335,6 +359,7 @@ def root_main():
                 create_system_file(KEY_PATH, PUBLIC_KEY)
             if not os.path.lexists(CONFIG_PATH):
                 create_system_file(CONFIG_PATH, (json.dumps(SOURCE_CONFIG, indent=2) + "\n").encode())
+            repair_source_access()
             check_config()
     finally:
         os.close(source)
@@ -449,7 +474,11 @@ def main():
         require(not args.check, "--check requires python3-cryptography; install it with sudo apt-get install python3-cryptography, then retry --check")
         print("Installing the standard Raspberry Pi OS signature-verification dependency.", flush=True)
         run_privileged("--dependencies")
-    check_config()
+    try:
+        check_config()
+    except PermissionError:
+        require(not args.check, "Store source permissions prevent ordinary-user access. Run this installer without --check to repair after package verification and sudo authorization")
+        print("Store source is unreadable; the authorized helper will validate it before installation and repair the managed public paths.", flush=True)
     print("Verifying signed Launcher + Store packages for " + os_name + " (arm64)…", flush=True)
     with tempfile.TemporaryDirectory(prefix="typix-install-") as temporary:
         directory = Path(temporary)
@@ -473,6 +502,9 @@ def main():
             print("CHECK PASSED: both complete packages verified; no sudo or system changes performed.")
             return 0
         run_privileged(str(directory))
+        # Recheck as the desktop user: root being able to read the source is
+        # insufficient, especially if an administrator chose a custom key path.
+        check_config()
     desktop_shortcut()
     subprocess.run(["/usr/bin/systemctl", "--user", "daemon-reload"], check=False)
     print("Launcher and Store are installed. Existing settings and data were preserved.")
